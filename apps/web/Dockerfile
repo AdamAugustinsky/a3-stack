@@ -1,17 +1,17 @@
 # Stage 1: Build the SvelteKit application
-FROM oven/bun:1.2.7-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json bun.lockb* ./
+COPY package.json ./
 
-RUN bun install --frozen-lockfile
+RUN npm install --production=false
 
 COPY . .
 # Remove server reference from tsconfig.json for Docker build
 RUN sed -i '/"references":/,/}]/d' tsconfig.json
 
-RUN bun run build
+RUN npm run build
 
 # Stage 2: Create the final production image
 FROM node:20-alpine
