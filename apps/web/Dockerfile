@@ -1,5 +1,5 @@
 # Stage 1: Build the SvelteKit application
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -11,10 +11,14 @@ COPY . .
 # Remove server reference from tsconfig.json for Docker build
 RUN sed -i '/"references":/,/}]/d' tsconfig.json
 
+# Set build-time environment variables
+ARG PUBLIC_SERVER_URL=http://localhost:3000
+ENV PUBLIC_SERVER_URL=$PUBLIC_SERVER_URL
+
 RUN npm run build
 
 # Stage 2: Create the final production image
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
