@@ -15,6 +15,9 @@ RUN sed -i '/"references":/,/}]/d' tsconfig.json
 ARG PUBLIC_SERVER_URL
 ENV PUBLIC_SERVER_URL=$PUBLIC_SERVER_URL
 
+# Debug: Print the environment variable to verify it's set
+RUN echo "Building with PUBLIC_SERVER_URL: $PUBLIC_SERVER_URL"
+
 RUN npm run build
 
 # Stage 2: Create the final production image
