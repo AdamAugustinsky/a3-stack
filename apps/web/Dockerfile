@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY package.json ./
 
-RUN npm install --production=false
+RUN npm install --legacy-peer-deps
 
 COPY . .
 # Remove server reference from tsconfig.json for Docker build
