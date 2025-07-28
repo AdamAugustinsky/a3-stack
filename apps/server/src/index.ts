@@ -24,12 +24,12 @@ const app = new Elysia()
     }
     context.error(405);
   })
-  .all('/rpc*', async (context) => {
+  .all("/rpc*", async (context) => {
     const { response } = await handler.handle(context.request, {
-      prefix: '/rpc',
-      context: await createContext({ context })
-    })
-    return response ?? new Response('Not Found', { status: 404 })
+      prefix: "/rpc",
+      context: await createContext({ context }),
+    });
+    return response ?? new Response("Not Found", { status: 404 });
   })
   .get("/", () => "OK")
   .listen(3000, () => {

@@ -12,7 +12,7 @@ COPY . .
 RUN sed -i '/"references":/,/}]/d' tsconfig.json
 
 # Set build-time environment variables
-ARG PUBLIC_SERVER_URL=http://localhost:3000
+ARG PUBLIC_SERVER_URL
 ENV PUBLIC_SERVER_URL=$PUBLIC_SERVER_URL
 
 RUN npm run build
