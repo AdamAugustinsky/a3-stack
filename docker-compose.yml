@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: besteststack
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./apps/server
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/besteststack
+      CORS_ORIGIN: http://localhost:3001
+      BETTER_AUTH_SECRET: B2q7LZwbaZciW2ryZGGgjYkffEpnNdcc
+      BETTER_AUTH_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    environment:
+      PUBLIC_SERVER_URL: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "3001:3000"
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
