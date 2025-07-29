@@ -2,34 +2,20 @@
   import { orpc } from "$lib/orpc";
   import { createQuery, createMutation } from "@tanstack/svelte-query";
   import TodoDataTable from "./components/todo-data-table.svelte";
-  import type { NewTask } from "$lib/components/schemas";
+  import EditTodoDialog from "./components/edit-todo-dialog.svelte";
+  import CreateTodoDialog from "./components/create-todo-dialog.svelte";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import CirclePlusIcon from "@lucide/svelte/icons/circle-plus";
+  import type { Task } from "$lib/components/schemas";
+  import type { PageData } from "./$types";
 
-  let newTodo = $state<NewTask>();
+  let { data }: { data: PageData } = $props();
+
+  let editingTodo = $state<Task>();
+  let showEditDialog = $state(false);
+  let showCreateDialog = $state(false);
 
   const todosQuery = createQuery(orpc.todo.getAll.queryOptions());
-
-  const addMutation = createMutation(
-    orpc.todo.create.mutationOptions({
-      onSuccess: () => {
-        $todosQuery.refetch();
-        newTodo = undefined;
-      },
-      onError: (error) => {
-        console.error("Failed to create todo:", error?.message ?? error);
-      },
-    }),
-  );
-
-  const toggleMutation = createMutation(
-    orpc.todo.toggle.mutationOptions({
-      onSuccess: () => {
-        $todosQuery.refetch();
-      },
-      onError: (error) => {
-        console.error("Failed to toggle todo:", error?.message ?? error);
-      },
-    }),
-  );
 
   const deleteMutation = createMutation(
     orpc.todo.delete.mutationOptions({
@@ -42,25 +28,31 @@
     }),
   );
 
-  function handleAddTodo(event: SubmitEvent) {
-    event.preventDefault();
-    if (newTodo) {
-      $addMutation.mutate(newTodo);
-    }
-  }
-
-  function handleToggleTodo(id: number, completed: boolean) {
-    $toggleMutation.mutate({ id, completed: !completed });
+  function handleOpenCreateDialog() {
+    showCreateDialog = true;
   }
 
   function handleDeleteTodo(id: number) {
     $deleteMutation.mutate({ id });
   }
 
-  const isAdding = $derived($addMutation.isPending);
-  const canAdd = $derived(
-    !isAdding && newTodo && newTodo.text.trim().length > 0,
-  );
+  function handleEditTodo(todo: Task) {
+    editingTodo = { ...todo };
+    showEditDialog = true;
+  }
+
+  function handleDuplicateTodo(todo: Task) {
+    // Open create dialog with duplicated data
+    showCreateDialog = true;
+    // The form will be pre-filled in the create dialog
+    data.createForm.data = {
+      text: `${todo.text} (copy)`,
+      label: todo.label,
+      status: todo.status,
+      priority: todo.priority,
+    };
+  }
+
   const isLoadingTodos = $derived($todosQuery.isLoading);
   const todos = $derived($todosQuery.data ?? []);
   const hasTodos = $derived(todos.length > 0);
@@ -86,9 +78,18 @@
         Here&apos;s a list of your tasks for this month.
       </p>
     </div>
+    <Button onclick={handleOpenCreateDialog}>
+      <CirclePlusIcon class="mr-2 h-4 w-4" />
+      Add Task
+    </Button>
   </div>
   {#if hasTodos}
-    <TodoDataTable data={todos} />
+    <TodoDataTable
+      data={todos}
+      onEdit={handleEditTodo}
+      onDelete={handleDeleteTodo}
+      onDuplicate={handleDuplicateTodo}
+    />
   {:else}
     <div class="text-center py-8">
       <p class="text-muted-foreground">
@@ -97,3 +98,14 @@
     </div>
   {/if}
 </div>
+
+<CreateTodoDialog
+  bind:open={showCreateDialog}
+  form={data.createForm}
+/>
+
+<EditTodoDialog
+  bind:open={showEditDialog}
+  bind:todo={editingTodo}
+  form={data.updateForm}
+/>

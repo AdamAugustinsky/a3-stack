@@ -4,7 +4,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 
   // change title based on the current route:
-  const titles: Record<typeof page.url.pathname, string> = {
+  const titles: Record<string, string> = {
     "/": "App",
     "/dashboard": "Dashboard",
     "/todos": "Todos",
@@ -14,7 +14,7 @@
     "/sign-up": "Sign Up",
   };
 
-  let pageTitle = $derived(titles[page.url.pathname]);
+  let pageTitle = $derived(titles[page.url.pathname] || "App");
 </script>
 
 <header

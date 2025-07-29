@@ -11,3 +11,13 @@ export const Task = type({
 
 export type Task = typeof Task.infer;
 export type NewTask = Omit<Task, "id">;
+
+// Generic Schema type for data-table components
+export interface Schema {
+  id: number;
+  header: string;
+  type: string;
+  status: string;
+  target?: number | string;
+  [key: string]: any;
+}

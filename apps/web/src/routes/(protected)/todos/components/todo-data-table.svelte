@@ -44,7 +44,17 @@
   import { cn } from "$lib/utils.js";
   import type { Task } from "$lib/components/schemas";
 
-  let { data }: { data: Task[] } = $props();
+  let {
+    data,
+    onEdit,
+    onDelete,
+    onDuplicate,
+  }: {
+    data: Task[];
+    onEdit?: (todo: Task) => void;
+    onDelete?: (id: number) => void;
+    onDuplicate?: (todo: Task) => void;
+  } = $props();
 
   let rowSelection = $state<RowSelectionState>({});
   let columnVisibility = $state<VisibilityState>({});
@@ -265,9 +275,16 @@
       {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content class="w-[160px]" align="end">
-      <DropdownMenu.Item>Edit</DropdownMenu.Item>
-      <DropdownMenu.Item>Make a copy</DropdownMenu.Item>
-      <DropdownMenu.Item>Favorite</DropdownMenu.Item>
+      <DropdownMenu.Item
+        onclick={() => onEdit?.(task)}
+      >
+        Edit
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        onclick={() => onDuplicate?.(task)}
+      >
+        Make a copy
+      </DropdownMenu.Item>
       <DropdownMenu.Separator />
       <DropdownMenu.Sub>
         <DropdownMenu.SubTrigger>Labels</DropdownMenu.SubTrigger>
@@ -282,7 +299,9 @@
         </DropdownMenu.SubContent>
       </DropdownMenu.Sub>
       <DropdownMenu.Separator />
-      <DropdownMenu.Item>
+      <DropdownMenu.Item
+        onclick={() => onDelete?.(task.id)}
+      >
         Delete
         <DropdownMenu.Shortcut>⌘⌫</DropdownMenu.Shortcut>
       </DropdownMenu.Item>

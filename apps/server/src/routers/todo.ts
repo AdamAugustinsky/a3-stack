@@ -33,6 +33,24 @@ export const todoRouter = {
         .where(eq(todo.id, input.id));
     }),
 
+  update: publicProcedure
+    .input(
+      type({
+        id: "number",
+        text: "string",
+        label: "'bug' | 'feature' | 'documentation'",
+        status: "'backlog' | 'todo' | 'in progress' | 'done' | 'canceled'",
+        priority: "'low' | 'medium' | 'high'",
+      }),
+    )
+    .handler(async ({ input }) => {
+      const { id, ...updateData } = input;
+      return await db
+        .update(todo)
+        .set(updateData)
+        .where(eq(todo.id, id));
+    }),
+
   delete: publicProcedure
     .input(
       type({
