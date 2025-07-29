@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import z from "zod";
 import { db } from "../db";
 import { todo } from "../db/schema/todo";
 import { publicProcedure } from "../lib/orpc";
+import { type } from "arktype";
 
 export const todoRouter = {
   getAll: publicProcedure.handler(async () => {
@@ -10,17 +10,24 @@ export const todoRouter = {
   }),
 
   create: publicProcedure
-    .input(z.object({ text: z.string().min(1) }))
+    .input(
+      type({
+        text: "string",
+      }),
+    )
     .handler(async ({ input }) => {
-      return await db
-        .insert(todo)
-        .values({
-          text: input.text,
-        });
+      return await db.insert(todo).values({
+        text: input.text,
+      });
     }),
 
   toggle: publicProcedure
-    .input(z.object({ id: z.number(), completed: z.boolean() }))
+    .input(
+      type({
+        id: "number",
+        completed: "boolean",
+      }),
+    )
     .handler(async ({ input }) => {
       return await db
         .update(todo)
@@ -29,9 +36,12 @@ export const todoRouter = {
     }),
 
   delete: publicProcedure
-    .input(z.object({ id: z.number() }))
+    .input(
+      type({
+        id: "number",
+      }),
+    )
     .handler(async ({ input }) => {
       return await db.delete(todo).where(eq(todo.id, input.id));
     }),
 };
-
