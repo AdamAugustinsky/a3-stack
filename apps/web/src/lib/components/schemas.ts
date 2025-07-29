@@ -1,13 +1,13 @@
-import { z } from "zod/v4";
+import { type } from "arktype";
 
-export const schema = z.object({
-	id: z.number(),
-	header: z.string(),
-	type: z.string(),
-	status: z.string(),
-	target: z.string(),
-	limit: z.string(),
-	reviewer: z.string(),
+export const Task = type({
+  id: "number",
+  text: "string",
+  completed: "boolean",
+  label: "'bug' | 'feature' | 'documentation'",
+  status: "'backlog' | 'todo' | 'in progress' | 'done' | 'canceled'",
+  priority: "'low' | 'medium' | 'high'",
 });
 
-export type Schema = z.infer<typeof schema>;
+export type Task = typeof Task.infer;
+export type NewTask = Omit<Task, "id">;

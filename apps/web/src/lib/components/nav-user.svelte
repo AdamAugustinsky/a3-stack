@@ -41,7 +41,14 @@
           >
             <Avatar.Root class="size-8 rounded-lg grayscale">
               <Avatar.Image src={user.image} alt={user.name} />
-              <Avatar.Fallback class="rounded-lg">CN</Avatar.Fallback>
+              <Avatar.Fallback class="rounded-lg"
+                >{user.name
+                  .split(" ")
+                  .map((s) => s[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase()}</Avatar.Fallback
+              >
             </Avatar.Root>
             <div class="grid flex-1 text-left text-sm leading-tight">
               <span class="truncate font-medium">{user.name}</span>
