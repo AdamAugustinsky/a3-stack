@@ -22,11 +22,11 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/besteststack
-      CORS_ORIGIN: http://localhost:4001
+      CORS_ORIGIN: http://localhost:3001
       BETTER_AUTH_SECRET: B2q7LZwbaZciW2ryZGGgjYkffEpnNdcc
-      BETTER_AUTH_URL: http://localhost:4000
+      BETTER_AUTH_URL: http://localhost:3000
     ports:
-      - "4000:4000"
+      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,13 +37,12 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
       args:
-        PUBLIC_SERVER_URL: ${PUBLIC_SERVER_URL:-http://localhost:4000}
+        PUBLIC_SERVER_URL: ${PUBLIC_SERVER_URL:-http://localhost:3000}
     environment:
-      PUBLIC_SERVER_URL: ${PUBLIC_SERVER_URL:-http://localhost:4000}
+      PUBLIC_SERVER_URL: ${PUBLIC_SERVER_URL:-http://localhost:3000}
       NODE_ENV: production
-      PORT: 4001
     ports:
-      - "4001:4001"
+      - "3001:3000"
     depends_on:
       - server
     restart: unless-stopped

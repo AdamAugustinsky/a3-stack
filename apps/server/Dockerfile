@@ -22,7 +22,7 @@ COPY package.json ./
 # Create data directory for local database file
 RUN mkdir -p /app/data
 
-EXPOSE 4000
+EXPOSE 3000
 
 # Initialize database schema on container start
 CMD ["sh", "-c", "bun run db:push && bun run start"]
