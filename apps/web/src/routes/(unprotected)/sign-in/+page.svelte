@@ -1,10 +1,10 @@
 <script lang="ts">
-  import LoginForm from "$lib/components/login-form.svelte";
+  import SignInForm from "$lib/components/signin-form.svelte";
   import { GalleryVerticalEndIcon } from "@lucide/svelte";
 </script>
 
 <div
-  class="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10"
+  class="bg-muted flex h-full flex-col items-center justify-center gap-6 p-6 md:p-10"
 >
   <div class="flex w-full max-w-sm flex-col gap-6">
     <a href="##" class="flex items-center gap-2 self-center font-medium">
@@ -15,6 +15,6 @@
       </div>
       Acme Inc.
     </a>
-    <LoginForm />
+    <SignInForm />
   </div>
 </div>

@@ -4,6 +4,8 @@
   import { createQuery } from "@tanstack/svelte-query";
   const healthCheck = createQuery(orpc.healthCheck.queryOptions());
   import * as Card from "$lib/components/ui/card/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import HomeHeader from "$lib/components/home-header.svelte";
 
   console.log("process.env.PUBLIC_SERVER_URL", env.PUBLIC_SERVER_URL);
 
@@ -17,7 +19,7 @@
    `;
 </script>
 
-<div class="container mx-auto max-w-3xl px-4 py-2">
+<div class="container mx-auto max-w-3xl px-4 py-8">
   <pre class="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
   <div class="grid gap-6">
     <Card.Root>
