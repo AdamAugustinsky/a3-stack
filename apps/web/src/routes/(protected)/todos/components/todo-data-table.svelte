@@ -49,11 +49,15 @@
     onEdit,
     onDelete,
     onDuplicate,
+    onSelectionChange,
+    clearSelectionSignal = 0,
   }: {
     data: Task[];
     onEdit?: (todo: Task) => void;
     onDelete?: (id: number) => void;
     onDuplicate?: (todo: Task) => void;
+    onSelectionChange?: (selected: Task[]) => void;
+    clearSelectionSignal?: number;
   } = $props();
 
   let rowSelection = $state<RowSelectionState>({});
@@ -219,6 +223,23 @@
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
+
+  // Track selection changes and call onSelectionChange
+  $effect(() => {
+    if (onSelectionChange) {
+      const selectedRows = table
+        .getSelectedRowModel()
+        .rows.map((row) => row.original);
+      onSelectionChange(selectedRows);
+    }
+  });
+
+  // Clear selection when signal changes
+  $effect(() => {
+    if (clearSelectionSignal > 0) {
+      rowSelection = {};
+    }
+  });
 </script>
 
 {#snippet StatusCell({ value }: { value: string })}
@@ -275,33 +296,12 @@
       {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content class="w-[160px]" align="end">
-      <DropdownMenu.Item
-        onclick={() => onEdit?.(task)}
-      >
-        Edit
-      </DropdownMenu.Item>
-      <DropdownMenu.Item
-        onclick={() => onDuplicate?.(task)}
-      >
+      <DropdownMenu.Item onclick={() => onEdit?.(task)}>Edit</DropdownMenu.Item>
+      <DropdownMenu.Item onclick={() => onDuplicate?.(task)}>
         Make a copy
       </DropdownMenu.Item>
       <DropdownMenu.Separator />
-      <DropdownMenu.Sub>
-        <DropdownMenu.SubTrigger>Labels</DropdownMenu.SubTrigger>
-        <DropdownMenu.SubContent>
-          <DropdownMenu.RadioGroup value={task.label}>
-            {#each labels as label (label.value)}
-              <DropdownMenu.RadioItem value={label.value}>
-                {label.label}
-              </DropdownMenu.RadioItem>
-            {/each}
-          </DropdownMenu.RadioGroup>
-        </DropdownMenu.SubContent>
-      </DropdownMenu.Sub>
-      <DropdownMenu.Separator />
-      <DropdownMenu.Item
-        onclick={() => onDelete?.(task.id)}
-      >
+      <DropdownMenu.Item onclick={() => onDelete?.(task.id)}>
         Delete
         <DropdownMenu.Shortcut>⌘⌫</DropdownMenu.Shortcut>
       </DropdownMenu.Item>

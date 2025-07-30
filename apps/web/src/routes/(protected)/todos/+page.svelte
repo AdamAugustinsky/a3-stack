@@ -4,6 +4,7 @@
   import TodoDataTable from "./components/todo-data-table.svelte";
   import EditTodoDialog from "./components/edit-todo-dialog.svelte";
   import CreateTodoDialog from "./components/create-todo-dialog.svelte";
+  import BulkOperationsDock from "./components/bulk-operations-dock.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import CirclePlusIcon from "@lucide/svelte/icons/circle-plus";
   import type { Task } from "$lib/components/schemas";
@@ -14,6 +15,8 @@
   let editingTodo = $state<Task>();
   let showEditDialog = $state(false);
   let showCreateDialog = $state(false);
+  let selectedTodos = $state<Task[]>([]);
+  let clearSelectionSignal = $state(0);
 
   const todosQuery = createQuery(orpc.todo.getAll.queryOptions());
 
@@ -24,6 +27,32 @@
       },
       onError: (error) => {
         console.error("Failed to delete todo:", error?.message ?? error);
+      },
+    }),
+  );
+
+  const bulkUpdateMutation = createMutation(
+    orpc.todo.bulkUpdate.mutationOptions({
+      onSuccess: () => {
+        $todosQuery.refetch();
+        selectedTodos = [];
+        clearSelectionSignal++;
+      },
+      onError: (error) => {
+        console.error("Failed to bulk update todos:", error?.message ?? error);
+      },
+    }),
+  );
+
+  const bulkDeleteMutation = createMutation(
+    orpc.todo.bulkDelete.mutationOptions({
+      onSuccess: () => {
+        $todosQuery.refetch();
+        selectedTodos = [];
+        clearSelectionSignal++;
+      },
+      onError: (error) => {
+        console.error("Failed to bulk delete todos:", error?.message ?? error);
       },
     }),
   );
@@ -51,6 +80,59 @@
       status: todo.status,
       priority: todo.priority,
     };
+  }
+
+  function handleSelectionChange(selected: Task[]) {
+    selectedTodos = selected;
+  }
+
+  // Clear selection when any bulk operation completes
+  $effect(() => {
+    if (!$bulkUpdateMutation.isPending && !$bulkDeleteMutation.isPending) {
+      // Selection is already cleared in the mutation onSuccess callbacks
+    }
+  });
+
+  function handleBulkStatusChange(status: string) {
+    if (selectedTodos.length > 0) {
+      const ids = selectedTodos.map(todo => todo.id);
+      $bulkUpdateMutation.mutate({
+        ids,
+        updates: { status: status as any }
+      });
+    }
+  }
+
+  function handleBulkPriorityChange(priority: string) {
+    if (selectedTodos.length > 0) {
+      const ids = selectedTodos.map(todo => todo.id);
+      $bulkUpdateMutation.mutate({
+        ids,
+        updates: { priority: priority as any }
+      });
+    }
+  }
+
+  function handleBulkLabelChange(label: string) {
+    if (selectedTodos.length > 0) {
+      const ids = selectedTodos.map(todo => todo.id);
+      $bulkUpdateMutation.mutate({
+        ids,
+        updates: { label: label as any }
+      });
+    }
+  }
+
+  function handleBulkDelete() {
+    if (selectedTodos.length > 0) {
+      const ids = selectedTodos.map(todo => todo.id);
+      $bulkDeleteMutation.mutate({ ids });
+    }
+  }
+
+  function handleClearSelection() {
+    selectedTodos = [];
+    clearSelectionSignal++; // Trigger table to clear selection
   }
 
   const isLoadingTodos = $derived($todosQuery.isLoading);
@@ -89,6 +171,8 @@
       onEdit={handleEditTodo}
       onDelete={handleDeleteTodo}
       onDuplicate={handleDuplicateTodo}
+      onSelectionChange={handleSelectionChange}
+      clearSelectionSignal={clearSelectionSignal}
     />
   {:else}
     <div class="text-center py-8">
@@ -98,6 +182,16 @@
     </div>
   {/if}
 </div>
+
+<BulkOperationsDock
+  selectedRows={selectedTodos}
+  onBulkStatusChange={handleBulkStatusChange}
+  onBulkPriorityChange={handleBulkPriorityChange}
+  onBulkLabelChange={handleBulkLabelChange}
+  onBulkDelete={handleBulkDelete}
+  onClearSelection={handleClearSelection}
+  isLoading={$bulkUpdateMutation.isPending || $bulkDeleteMutation.isPending}
+/>
 
 <CreateTodoDialog
   bind:open={showCreateDialog}

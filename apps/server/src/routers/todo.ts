@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { todo } from "../db/schema/todo";
 import { publicProcedure } from "../lib/orpc";
@@ -59,5 +59,35 @@ export const todoRouter = {
     )
     .handler(async ({ input }) => {
       return await db.delete(todo).where(eq(todo.id, input.id));
+    }),
+
+  bulkUpdate: publicProcedure
+    .input(
+      type({
+        ids: "number[]",
+        updates: {
+          "label?": "'bug' | 'feature' | 'documentation'",
+          "status?": "'backlog' | 'todo' | 'in progress' | 'done' | 'canceled'",
+          "priority?": "'low' | 'medium' | 'high'",
+        },
+      }),
+    )
+    .handler(async ({ input }) => {
+      const { ids, updates } = input;
+      return await db
+        .update(todo)
+        .set(updates)
+        .where(inArray(todo.id, ids));
+    }),
+
+  bulkDelete: publicProcedure
+    .input(
+      type({
+        ids: "number[]",
+      }),
+    )
+    .handler(async ({ input }) => {
+      const { ids } = input;
+      return await db.delete(todo).where(inArray(todo.id, ids));
     }),
 };
