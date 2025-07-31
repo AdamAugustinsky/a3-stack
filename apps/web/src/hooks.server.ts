@@ -4,11 +4,7 @@ import { redirect, type Handle } from "@sveltejs/kit";
 export const handle: Handle = async ({ event, resolve }) => {
   if (event.route.id?.startsWith("/(protected)/")) {
     console.log("test server middleware", event.request.headers);
-    const session = await authClient.getSession({
-      fetchOptions: {
-        headers: event.request.headers,
-      },
-    });
+    const session = await authClient.getSession();
 
     console.log("session", session);
 
