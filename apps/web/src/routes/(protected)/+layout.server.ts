@@ -1,6 +1,7 @@
 import type { LayoutServerLoad } from "./$types";
 
-export const load: LayoutServerLoad = ({ locals }) => {
+export const load: LayoutServerLoad = ({ locals, request }) => {
+  console.log("event.request.headers", request.headers);
   return {
     session: locals.session!,
     user: locals.user!,
