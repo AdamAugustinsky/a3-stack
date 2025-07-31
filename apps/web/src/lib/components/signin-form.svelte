@@ -41,25 +41,20 @@
   async function handleLogin(data: { email: string; password: string }) {
     loginError = "";
     isLoading = true;
-    
-    try {
-      await authClient.signIn.email(
-        { email: data.email, password: data.password },
-        {
-          onSuccess: () => {
-            isLoading = false;
-            goto("/dashboard");
-          },
-          onError: (error) => {
-            isLoading = false;
-            loginError = error.error.message || "Sign in failed. Please try again.";
-          },
+    await authClient.signIn.email(
+      {
+        email: data.email,
+        password: data.password,
+        callbackURL: "/dashboard",
+      },
+      {
+        onError: (error) => {
+          isLoading = false;
+          loginError =
+            error.error.message || "Sign in failed. Please try again.";
         },
-      );
-    } catch (error) {
-      isLoading = false;
-      loginError = "An unexpected error occurred. Please try again.";
-    }
+      },
+    );
   }
 </script>
 
