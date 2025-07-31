@@ -4,7 +4,10 @@ import type { Session, User } from "better-auth";
 declare global {
   namespace App {
     // interface Error {}
-    // interface Locals {}
+    interface Locals {
+      user?: User;
+      session?: Session;
+    }
     // interface PageData {}
     // interface PageState {}
     // interface Platform {}
