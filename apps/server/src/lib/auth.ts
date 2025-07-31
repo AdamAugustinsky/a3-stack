@@ -1,4 +1,3 @@
-
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db";
@@ -8,23 +7,20 @@ import { passwordResetEmailTemplate } from "./email-templates";
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
-    
-    
+
     schema: schema,
   }),
-  trustedOrigins: [
-    process.env.CORS_ORIGIN || "",
-  ],
+  trustedOrigins: [process.env.CORS_ORIGIN || ""],
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url, token }) => {
       // Replace the API URL with the web app URL
       const webAppUrl = process.env.CORS_ORIGIN || "http://localhost:5173";
       const resetUrl = `${webAppUrl}/password-reset?token=${token}`;
-      
+
       // Get email template with corrected URL
       const emailContent = passwordResetEmailTemplate(resetUrl, user.name);
-      
+
       // For development, log the reset URL
       console.log("\n=== PASSWORD RESET REQUEST ===");
       console.log("User:", user.email);
@@ -32,7 +28,7 @@ export const auth = betterAuth({
       console.log("Token:", token);
       console.log("Email Subject:", emailContent.subject);
       console.log("==============================\n");
-      
+
       // TODO: Implement actual email sending in production
       // For now, in development, the reset URL is logged to console
       // In production, you would use an email service like:
@@ -45,7 +41,9 @@ export const auth = betterAuth({
   },
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  advanced: {
+    crossSubDomainCookies: {
+      enabled: true,
+    },
+  },
 });
-
-
-
