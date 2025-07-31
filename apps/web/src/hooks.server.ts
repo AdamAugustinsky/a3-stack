@@ -1,10 +1,10 @@
-import { authClient } from "$lib/auth-client";
+import { authServerClient } from "$lib/server/auth-client";
 import { redirect, type Handle } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
   if (event.route.id?.startsWith("/(protected)/")) {
     console.log("test server middleware", event.request.headers);
-    const session = await authClient.getSession();
+    const session = await authServerClient.getSession();
 
     console.log("session", session);
 
