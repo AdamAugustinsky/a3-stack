@@ -32,7 +32,7 @@
     },
   });
 
-  const { enhance, form: formData, errors, delayed } = form;
+  const { enhance, form: formData, delayed } = form;
 
   // Reset form when dialog closes
   $effect(() => {
@@ -50,7 +50,7 @@
         Add a new task to your todo list. Fill in the details below.
       </Dialog.Description>
     </Dialog.Header>
-    
+
     <form method="POST" action="?/create" use:enhance class="mt-6 space-y-6">
       <Form.Field {form} name="text">
         <Form.Control>
@@ -90,7 +90,9 @@
               >
                 <Select.Trigger class="w-full">
                   <Badge variant="outline" class="font-normal">
-                    {labels.find(l => l.value === ($formData.label || "feature"))?.label}
+                    {labels.find(
+                      (l) => l.value === ($formData.label || "feature"),
+                    )?.label}
                   </Badge>
                 </Select.Trigger>
                 <Select.Content>
@@ -123,10 +125,14 @@
                 }}
               >
                 <Select.Trigger class="w-full">
-                  {@const currentStatus = statuses.find(s => s.value === ($formData.status || "todo"))}
+                  {@const currentStatus = statuses.find(
+                    (s) => s.value === ($formData.status || "todo"),
+                  )}
                   {#if currentStatus}
                     <div class="flex items-center">
-                      <currentStatus.icon class="mr-2 h-4 w-4 text-muted-foreground" />
+                      <currentStatus.icon
+                        class="mr-2 h-4 w-4 text-muted-foreground"
+                      />
                       <span>{currentStatus.label}</span>
                     </div>
                   {/if}
@@ -135,7 +141,9 @@
                   {#each statuses as status (status.value)}
                     <Select.Item value={status.value}>
                       <div class="flex items-center">
-                        <status.icon class="mr-2 h-4 w-4 text-muted-foreground" />
+                        <status.icon
+                          class="mr-2 h-4 w-4 text-muted-foreground"
+                        />
                         <span>{status.label}</span>
                       </div>
                     </Select.Item>
@@ -149,7 +157,7 @@
 
         <Form.Field {form} name="priority">
           <Form.Control>
-            {#snippet children({ props })}
+            {#snippet children()}
               <Form.Label>Priority</Form.Label>
               <Select.Root
                 type="single"
@@ -162,10 +170,14 @@
                 }}
               >
                 <Select.Trigger class="w-full">
-                  {@const currentPriority = priorities.find(p => p.value === ($formData.priority || "medium"))}
+                  {@const currentPriority = priorities.find(
+                    (p) => p.value === ($formData.priority || "medium"),
+                  )}
                   {#if currentPriority}
                     <div class="flex items-center">
-                      <currentPriority.icon class="mr-2 h-4 w-4 text-muted-foreground" />
+                      <currentPriority.icon
+                        class="mr-2 h-4 w-4 text-muted-foreground"
+                      />
                       <span>{currentPriority.label}</span>
                     </div>
                   {/if}
@@ -174,7 +186,9 @@
                   {#each priorities as priority (priority.value)}
                     <Select.Item value={priority.value}>
                       <div class="flex items-center">
-                        <priority.icon class="mr-2 h-4 w-4 text-muted-foreground" />
+                        <priority.icon
+                          class="mr-2 h-4 w-4 text-muted-foreground"
+                        />
                         <span>{priority.label}</span>
                       </div>
                     </Select.Item>
@@ -188,16 +202,14 @@
       </div>
 
       <Dialog.Footer class="gap-2 sm:gap-0">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onclick={() => open = false}
-        >
+        <Button type="button" variant="outline" onclick={() => (open = false)}>
           Cancel
         </Button>
         <Button type="submit" disabled={$delayed}>
           {#if $delayed}
-            <div class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+            <div
+              class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"
+            ></div>
             Creating...
           {:else}
             Create task
@@ -207,3 +219,4 @@
     </form>
   </Dialog.Content>
 </Dialog.Root>
+

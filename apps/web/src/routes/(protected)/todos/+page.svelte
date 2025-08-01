@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { orpc } from "$lib/orpc";
-  import { createQuery, createMutation } from "@tanstack/svelte-query";
+  import { invalidateAll } from "$app/navigation";
+  import { enhance } from "$app/forms";
+  import { createMutation } from "@tanstack/svelte-query";
+  import { edenTreaty } from "$lib/eden";
   import TodoDataTable from "./components/todo-data-table.svelte";
   import EditTodoDialog from "./components/edit-todo-dialog.svelte";
   import CreateTodoDialog from "./components/create-todo-dialog.svelte";
@@ -17,52 +19,61 @@
   let showCreateDialog = $state(false);
   let selectedTodos = $state<Task[]>([]);
   let clearSelectionSignal = $state(0);
+  let deletingId = $state<number | null>(null);
 
-  const todosQuery = createQuery(orpc.todo.getAll.queryOptions());
+  // Use the todos from server load function
+  let todos = $derived(data.todos);
 
-  const deleteMutation = createMutation(
-    orpc.todo.delete.mutationOptions({
-      onSuccess: () => {
-        $todosQuery.refetch();
-      },
-      onError: (error) => {
-        console.error("Failed to delete todo:", error?.message ?? error);
-      },
-    }),
-  );
+  // Use svelte-query for bulk operations where forms aren't convenient
+  const bulkUpdateMutation = createMutation({
+    mutationFn: async ({ ids, updates }: { ids: number[], updates: any }) => {
+      const response = await edenTreaty.api.todo.bulk.patch({ ids, updates });
+      if (response.error) {
+        const errorMessage = response.error.value?.message || 'Failed to bulk update';
+        throw new Error(errorMessage);
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      selectedTodos = [];
+      clearSelectionSignal++;
+    },
+    onError: (error) => {
+      console.error("Failed to bulk update todos:", error?.message ?? error);
+    },
+  });
 
-  const bulkUpdateMutation = createMutation(
-    orpc.todo.bulkUpdate.mutationOptions({
-      onSuccess: () => {
-        $todosQuery.refetch();
-        selectedTodos = [];
-        clearSelectionSignal++;
-      },
-      onError: (error) => {
-        console.error("Failed to bulk update todos:", error?.message ?? error);
-      },
-    }),
-  );
-
-  const bulkDeleteMutation = createMutation(
-    orpc.todo.bulkDelete.mutationOptions({
-      onSuccess: () => {
-        $todosQuery.refetch();
-        selectedTodos = [];
-        clearSelectionSignal++;
-      },
-      onError: (error) => {
-        console.error("Failed to bulk delete todos:", error?.message ?? error);
-      },
-    }),
-  );
+  const bulkDeleteMutation = createMutation({
+    mutationFn: async ({ ids }: { ids: number[] }) => {
+      const response = await edenTreaty.api.todo.bulk.delete({ ids });
+      if (response.error) {
+        const errorMessage = response.error.value?.message || 'Failed to bulk delete';
+        throw new Error(errorMessage);
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      selectedTodos = [];
+      clearSelectionSignal++;
+    },
+    onError: (error) => {
+      console.error("Failed to bulk delete todos:", error?.message ?? error);
+    },
+  });
 
   function handleOpenCreateDialog() {
     showCreateDialog = true;
   }
 
   function handleDeleteTodo(id: number) {
-    $deleteMutation.mutate({ id });
+    deletingId = id;
+    // Submit the hidden form
+    const form = document.getElementById(`delete-form-${id}`) as HTMLFormElement;
+    if (form) {
+      form.requestSubmit();
+    }
   }
 
   function handleEditTodo(todo: Task) {
@@ -86,46 +97,39 @@
     selectedTodos = selected;
   }
 
-  // Clear selection when any bulk operation completes
-  $effect(() => {
-    if (!$bulkUpdateMutation.isPending && !$bulkDeleteMutation.isPending) {
-      // Selection is already cleared in the mutation onSuccess callbacks
-    }
-  });
-
   function handleBulkStatusChange(status: string) {
     if (selectedTodos.length > 0) {
-      const ids = selectedTodos.map(todo => todo.id);
+      const ids = selectedTodos.map((todo) => todo.id);
       $bulkUpdateMutation.mutate({
         ids,
-        updates: { status: status as any }
+        updates: { status: status as any },
       });
     }
   }
 
   function handleBulkPriorityChange(priority: string) {
     if (selectedTodos.length > 0) {
-      const ids = selectedTodos.map(todo => todo.id);
+      const ids = selectedTodos.map((todo) => todo.id);
       $bulkUpdateMutation.mutate({
         ids,
-        updates: { priority: priority as any }
+        updates: { priority: priority as any },
       });
     }
   }
 
   function handleBulkLabelChange(label: string) {
     if (selectedTodos.length > 0) {
-      const ids = selectedTodos.map(todo => todo.id);
+      const ids = selectedTodos.map((todo) => todo.id);
       $bulkUpdateMutation.mutate({
         ids,
-        updates: { label: label as any }
+        updates: { label: label as any },
       });
     }
   }
 
   function handleBulkDelete() {
     if (selectedTodos.length > 0) {
-      const ids = selectedTodos.map(todo => todo.id);
+      const ids = selectedTodos.map((todo) => todo.id);
       $bulkDeleteMutation.mutate({ ids });
     }
   }
@@ -135,23 +139,23 @@
     clearSelectionSignal++; // Trigger table to clear selection
   }
 
-  const isLoadingTodos = $derived($todosQuery.isLoading);
-  const todos = $derived($todosQuery.data ?? []);
+  const isLoadingTodos = $derived(false); // We're loading from server
   const hasTodos = $derived(todos.length > 0);
+  const isBulkOperationPending = $derived($bulkUpdateMutation.isPending || $bulkDeleteMutation.isPending);
 </script>
 
-<div class="md:hidden">
-  <img
-    src="/img/examples/tasks-light.png"
-    alt="Tasks"
-    class="block dark:hidden"
-  />
-  <img
-    src="/img/examples/tasks-dark.png"
-    alt="Tasks"
-    class="hidden dark:block"
-  />
-</div>
+<!-- <div class="md:hidden"> -->
+<!--   <img -->
+<!--     src="/img/examples/tasks-light.png" -->
+<!--     alt="Tasks" -->
+<!--     class="block dark:hidden" -->
+<!--   /> -->
+<!--   <img -->
+<!--     src="/img/examples/tasks-dark.png" -->
+<!--     alt="Tasks" -->
+<!--     class="hidden dark:block" -->
+<!--   /> -->
+<!-- </div> -->
 <div class="hidden h-full flex-1 flex-col gap-8 p-8 md:flex">
   <div class="flex items-center justify-between gap-2">
     <div class="flex flex-col gap-1">
@@ -172,7 +176,7 @@
       onDelete={handleDeleteTodo}
       onDuplicate={handleDuplicateTodo}
       onSelectionChange={handleSelectionChange}
-      clearSelectionSignal={clearSelectionSignal}
+      {clearSelectionSignal}
     />
   {:else}
     <div class="text-center py-8">
@@ -190,16 +194,34 @@
   onBulkLabelChange={handleBulkLabelChange}
   onBulkDelete={handleBulkDelete}
   onClearSelection={handleClearSelection}
-  isLoading={$bulkUpdateMutation.isPending || $bulkDeleteMutation.isPending}
+  isLoading={isBulkOperationPending}
 />
 
-<CreateTodoDialog
-  bind:open={showCreateDialog}
-  form={data.createForm}
-/>
+<CreateTodoDialog bind:open={showCreateDialog} form={data.createForm} />
 
 <EditTodoDialog
   bind:open={showEditDialog}
   bind:todo={editingTodo}
   form={data.updateForm}
 />
+
+<!-- Hidden delete forms for each todo -->
+{#each todos as todo}
+  <form
+    id="delete-form-{todo.id}"
+    method="POST"
+    action="?/delete"
+    use:enhance={() => {
+      return async ({ result, update }) => {
+        if (result.type === 'success') {
+          deletingId = null;
+        }
+        await update();
+      };
+    }}
+    class="hidden"
+  >
+    <input type="hidden" name="id" value={todo.id} />
+  </form>
+{/each}
+
