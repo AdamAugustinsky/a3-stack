@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a full-stack TypeScript monorepo using Turborepo with two main applications:
 
 - **apps/web**: SvelteKit frontend with Svelte 5, TailwindCSS, and shadcn/ui components
-- **apps/server**: Elysia backend (migrated from oRPC) with type-safe APIs, Drizzle ORM, and PostgreSQL
+- **apps/server**: Elysia backend with type-safe APIs, Drizzle ORM, and PostgreSQL
 
 ### Key Technologies
 
@@ -139,7 +139,7 @@ BETTER_AUTH_URL=http://localhost:5173
 
 ## Important Notes
 
-- The project has migrated from oRPC to Elysia for the backend API
+- The project uses Elysia for the backend API with Eden treaty for type-safe communication
 - API routes are defined in the web app itself (`apps/web/src/lib/server/elysia.ts`)
 - Use forms for single-item CRUD operations when possible
 - Use Eden treaty + svelte-query for bulk operations or complex client-side interactions

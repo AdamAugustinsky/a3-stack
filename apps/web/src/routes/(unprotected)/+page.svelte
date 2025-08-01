@@ -1,13 +1,20 @@
 <script lang="ts">
   import { env } from "$env/dynamic/public";
-  import { orpc } from "$lib/orpc";
+  import { edenTreaty } from "$lib/eden";
   import { createQuery } from "@tanstack/svelte-query";
-  const healthCheck = createQuery(orpc.healthCheck.queryOptions());
   import * as Card from "$lib/components/ui/card/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import HomeHeader from "$lib/components/home-header.svelte";
 
   console.log("process.env.PUBLIC_SERVER_URL", env.PUBLIC_SERVER_URL);
+
+  const healthCheck = createQuery({
+    queryKey: ["healthcheck"],
+    queryFn: async () => {
+      const response = await edenTreaty.api.healthcheck.get();
+      return response.data;
+    },
+  });
 
   const TITLE_TEXT = `
     █████╗ ██████╗     ███████╗████████╗ █████╗  ██████╗██╗  ██╗
