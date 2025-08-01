@@ -71,6 +71,6 @@
     "tw-animate-css": "^1.3.6",
     "typescript": "^5.9.2",
     "vaul-svelte": "^1.0.0-next.7",
-    "vite": "^7.0.6"
+    "vite": "npm:rolldown-vite@latest"
   }
 }
