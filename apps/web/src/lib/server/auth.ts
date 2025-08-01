@@ -4,6 +4,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
 import * as schema from "./db/schema/auth";
 import { passwordResetEmailTemplate } from "./email-templates";
+import { sveltekitCookies } from "better-auth/svelte-kit";
+import { getRequestEvent } from "$app/server";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -14,7 +16,7 @@ export const auth = betterAuth({
   trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:5173"],
   emailAndPassword: {
     enabled: true,
-    sendResetPassword: async ({ user, url, token }) => {
+    sendResetPassword: async ({ user, token }) => {
       // Replace the API URL with the web app URL
       const webAppUrl = process.env.BETTER_AUTH_URL || "http://localhost:5173";
       const resetUrl = `${webAppUrl}/password-reset?token=${token}`;
@@ -42,9 +44,5 @@ export const auth = betterAuth({
   },
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
-  advanced: {
-    crossSubDomainCookies: {
-      enabled: true,
-    },
-  },
+  plugins: [sveltekitCookies(getRequestEvent)],
 });
