@@ -39,9 +39,7 @@
   },
   "plugins": {
     "shell": {
-      "scope": {
-        "open": true
-      }
+      "open": true
     }
   }
 }

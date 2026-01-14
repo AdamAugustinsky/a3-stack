@@ -53,7 +53,8 @@ export async function downloadTemplate(
   templateName: string,
   targetDir: string
 ): Promise<void> {
-  await gigetDownload(`github:${GITHUB_REPO}/templates/${templateName}`, targetDir, {
+  await gigetDownload(`github:${GITHUB_REPO}/templates/${templateName}`, {
+    dir: targetDir,
     force: false,
   });
 }

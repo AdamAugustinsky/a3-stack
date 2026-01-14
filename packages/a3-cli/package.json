@@ -1,24 +1,23 @@
 {
-  "name": "a3-cli",
+  "name": "a3-stack-cli",
   "version": "0.1.0",
   "description": "A3 Stack CLI - Create modern full-stack apps with SvelteKit, Better Auth, and Kysely",
   "type": "module",
   "bin": {
-    "a3": "./dist/index.js"
+    "a3": "./src/index.ts"
   },
-  "main": "./dist/lib/index.js",
+  "main": "./src/lib/index.ts",
   "exports": {
-    ".": "./dist/lib/index.js",
-    "./commands": "./dist/commands/index.js"
+    ".": "./src/lib/index.ts",
+    "./commands": "./src/commands/index.ts"
   },
   "files": [
-    "dist"
+    "src"
   ],
   "scripts": {
     "dev": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run typecheck"
   },
   "dependencies": {
     "citty": "^0.1.6",
@@ -45,5 +44,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/AdamAugustinsky/a3-stack"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
   }
 }

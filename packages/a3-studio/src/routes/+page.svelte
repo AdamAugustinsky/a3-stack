@@ -132,8 +132,8 @@
 
     <!-- Template Selection -->
     <div class="space-y-2">
-      <label class="text-sm font-medium">Template</label>
-      <div class="grid gap-4 sm:grid-cols-2">
+      <p class="text-sm font-medium">Template</p>
+      <div class="grid gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Select template">
         {#each templates as template}
           <TemplateCard
             {template}
