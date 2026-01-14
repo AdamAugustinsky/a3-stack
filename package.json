@@ -1,0 +1,15 @@
+{
+  "name": "a3-stack",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "cli": "bun run --cwd packages/a3-cli",
+    "studio": "bun run --cwd packages/a3-studio",
+    "build": "bun run --filter '*' build",
+    "dev:cli": "bun run --cwd packages/a3-cli dev",
+    "dev:studio": "bun run --cwd packages/a3-studio dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

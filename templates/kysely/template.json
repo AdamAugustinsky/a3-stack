@@ -1,0 +1,18 @@
+{
+  "name": "kysely",
+  "displayName": "A3 Stack + Kysely",
+  "description": "SvelteKit 5 + Better Auth + Kysely with PostgreSQL",
+  "features": [
+    "Type-safe SQL with Kysely",
+    "PostgreSQL with Docker",
+    "Better Auth authentication",
+    "Organization/multi-tenant support",
+    "shadcn-svelte components",
+    "TailwindCSS v4",
+    "Remote functions (experimental)",
+    "Atlas database migrations"
+  ],
+  "icon": "database",
+  "version": "1.0.0",
+  "postInstall": "bun run scripts/setup-project.ts"
+}
