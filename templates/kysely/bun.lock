@@ -6,6 +6,7 @@
       "name": "{{projectName}}",
       "dependencies": {
         "better-auth": "^1.4.7",
+        "effect": "^3.19.14",
         "kysely": "^0.28.9",
         "kysely-bun-sql": "^0.2.0",
         "runed": "^0.34.0",

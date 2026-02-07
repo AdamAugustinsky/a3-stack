@@ -1,11 +1,20 @@
-import { test, expect, afterAll, beforeAll, describe } from 'bun:test';
-import { createTestApp } from './test.utils';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { Effect } from 'effect';
 import type { Kysely } from 'kysely';
 import type { DB } from './db/db.types';
+import { createTestApp } from './test.utils';
 
 let cleanup = () => {};
 let db: Kysely<DB>;
 let organizationId: string;
+
+const tryPromise = <A>(run: () => Promise<A>, message: string) =>
+	Effect.tryPromise({
+		try: run,
+		catch: (cause) => new Error(message, { cause })
+	});
+
+const runEffect = <A>(effect: Effect.Effect<A, Error, never>) => Effect.runPromise(effect);
 
 beforeAll(async () => {
 	const testApp = await createTestApp();
@@ -16,14 +25,15 @@ beforeAll(async () => {
 
 afterAll(() => cleanup());
 
-// Test helpers
-const createTestTodo = async (overrides: Partial<{
-	text: string;
-	completed: boolean;
-	priority: 'low' | 'medium' | 'high';
-	status: 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled';
-	label: 'bug' | 'feature' | 'documentation';
-}> = {}) => {
+const createTestTodo = async (
+	overrides: Partial<{
+		text: string;
+		completed: boolean;
+		priority: 'low' | 'medium' | 'high';
+		status: 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled';
+		label: 'bug' | 'feature' | 'documentation';
+	}> = {}
+) => {
 	const defaultTodo = {
 		text: 'Test todo',
 		completed: false,
@@ -35,11 +45,17 @@ const createTestTodo = async (overrides: Partial<{
 		updated_at: new Date()
 	};
 
-	const result = await db
-		.insertInto('todo')
-		.values({ ...defaultTodo, ...overrides })
-		.returningAll()
-		.execute();
+	const result = await runEffect(
+		tryPromise(
+			() =>
+				db
+					.insertInto('todo')
+					.values({ ...defaultTodo, ...overrides })
+					.returningAll()
+					.execute(),
+			'Failed to create test todo'
+		)
+	);
 
 	return result[0];
 };
@@ -58,16 +74,22 @@ const createMultipleTodos = async (count: number) => {
 };
 
 const clearTodos = async () => {
-	await db.deleteFrom('todo').where('organization_id', '=', organizationId).execute();
+	await runEffect(
+		tryPromise(
+			() => db.deleteFrom('todo').where('organization_id', '=', organizationId).execute(),
+			'Failed to clear todos'
+		)
+	);
 };
 
-const getTodos = async () => {
-	return db
-		.selectFrom('todo')
-		.selectAll()
-		.where('organization_id', '=', organizationId)
-		.execute();
-};
+const getTodos = async () =>
+	runEffect(
+		tryPromise(
+			() =>
+				db.selectFrom('todo').selectAll().where('organization_id', '=', organizationId).execute(),
+			'Failed to fetch todos'
+		)
+	);
 
 describe('Todo CRUD Operations', () => {
 	test('GET - returns empty array initially', async () => {
@@ -118,7 +140,7 @@ describe('Todo CRUD Operations', () => {
 	test('PATCH - updates todo fields', async () => {
 		await createTestTodo({ text: 'Original todo' });
 		const todos = await getTodos();
-		const todo = todos.find((t) => t.text === 'Original todo');
+		const todo = todos.find((candidate) => candidate.text === 'Original todo');
 
 		const updateData = {
 			text: 'Updated todo text',
@@ -128,15 +150,21 @@ describe('Todo CRUD Operations', () => {
 			updated_at: new Date()
 		};
 
-		await db
-			.updateTable('todo')
-			.set(updateData)
-			.where('id', '=', todo!.id)
-			.where('organization_id', '=', organizationId)
-			.execute();
+		await runEffect(
+			tryPromise(
+				() =>
+					db
+						.updateTable('todo')
+						.set(updateData)
+						.where('id', '=', todo!.id)
+						.where('organization_id', '=', organizationId)
+						.execute(),
+				'Failed to update todo'
+			)
+		);
 
 		const updatedTodos = await getTodos();
-		const updatedTodo = updatedTodos.find((t) => t.id === todo!.id);
+		const updatedTodo = updatedTodos.find((candidate) => candidate.id === todo!.id);
 
 		expect(updatedTodo?.text).toBe(updateData.text);
 		expect(updatedTodo?.label).toBe(updateData.label);
@@ -147,18 +175,24 @@ describe('Todo CRUD Operations', () => {
 	test('DELETE - removes todo', async () => {
 		await createTestTodo({ text: 'Todo to delete' });
 		const todos = await getTodos();
-		const todoToDelete = todos.find((t) => t.text === 'Todo to delete');
+		const todoToDelete = todos.find((candidate) => candidate.text === 'Todo to delete');
 		const initialCount = todos.length;
 
-		await db
-			.deleteFrom('todo')
-			.where('id', '=', todoToDelete!.id)
-			.where('organization_id', '=', organizationId)
-			.execute();
+		await runEffect(
+			tryPromise(
+				() =>
+					db
+						.deleteFrom('todo')
+						.where('id', '=', todoToDelete!.id)
+						.where('organization_id', '=', organizationId)
+						.execute(),
+				'Failed to delete todo'
+			)
+		);
 
 		const remainingTodos = await getTodos();
 		expect(remainingTodos.length).toBe(initialCount - 1);
-		expect(remainingTodos.find((t) => t.id === todoToDelete!.id)).toBeUndefined();
+		expect(remainingTodos.find((candidate) => candidate.id === todoToDelete!.id)).toBeUndefined();
 	});
 });
 
@@ -166,19 +200,25 @@ describe('Todo Toggle Operation', () => {
 	test('PATCH - toggles completion status', async () => {
 		await createTestTodo({ text: 'Toggle test', completed: false });
 		const todos = await getTodos();
-		const todo = todos.find((t) => t.text === 'Toggle test');
+		const todo = todos.find((candidate) => candidate.text === 'Toggle test');
 
 		expect(todo?.completed).toBe(false);
 
-		await db
-			.updateTable('todo')
-			.set({ completed: true, updated_at: new Date() })
-			.where('id', '=', todo!.id)
-			.where('organization_id', '=', organizationId)
-			.execute();
+		await runEffect(
+			tryPromise(
+				() =>
+					db
+						.updateTable('todo')
+						.set({ completed: true, updated_at: new Date() })
+						.where('id', '=', todo!.id)
+						.where('organization_id', '=', organizationId)
+						.execute(),
+				'Failed to toggle todo completion'
+			)
+		);
 
 		const updatedTodos = await getTodos();
-		const updatedTodo = updatedTodos.find((t) => t.id === todo!.id);
+		const updatedTodo = updatedTodos.find((candidate) => candidate.id === todo!.id);
 
 		expect(updatedTodo?.completed).toBe(true);
 	});
@@ -188,38 +228,50 @@ describe('Bulk Operations', () => {
 	test('PATCH bulk - updates multiple todos', async () => {
 		await createMultipleTodos(3);
 		const todos = await getTodos();
-		const todoIds = todos.slice(0, 2).map((t) => t.id);
+		const todoIds = todos.slice(0, 2).map((todo) => todo.id);
 
-		await db
-			.updateTable('todo')
-			.set({ status: 'done', priority: 'low', updated_at: new Date() })
-			.where('id', 'in', todoIds)
-			.where('organization_id', '=', organizationId)
-			.execute();
+		await runEffect(
+			tryPromise(
+				() =>
+					db
+						.updateTable('todo')
+						.set({ status: 'done', priority: 'low', updated_at: new Date() })
+						.where('id', 'in', todoIds)
+						.where('organization_id', '=', organizationId)
+						.execute(),
+				'Failed to bulk update todos'
+			)
+		);
 
 		const updatedTodos = await getTodos();
-		const updatedItems = updatedTodos.filter((t) => todoIds.includes(t.id));
+		const updatedItems = updatedTodos.filter((todo) => todoIds.includes(todo.id));
 
-		expect(updatedItems.every((t) => t.status === 'done')).toBe(true);
-		expect(updatedItems.every((t) => t.priority === 'low')).toBe(true);
+		expect(updatedItems.every((todo) => todo.status === 'done')).toBe(true);
+		expect(updatedItems.every((todo) => todo.priority === 'low')).toBe(true);
 	});
 
 	test('DELETE bulk - deletes multiple todos', async () => {
 		await createMultipleTodos(4);
 		const todos = await getTodos();
-		const todoIds = todos.slice(0, 2).map((t) => t.id);
+		const todoIds = todos.slice(0, 2).map((todo) => todo.id);
 		const initialCount = todos.length;
 
-		await db
-			.deleteFrom('todo')
-			.where('id', 'in', todoIds)
-			.where('organization_id', '=', organizationId)
-			.execute();
+		await runEffect(
+			tryPromise(
+				() =>
+					db
+						.deleteFrom('todo')
+						.where('id', 'in', todoIds)
+						.where('organization_id', '=', organizationId)
+						.execute(),
+				'Failed to bulk delete todos'
+			)
+		);
 
 		const remainingTodos = await getTodos();
 		expect(remainingTodos.length).toBe(initialCount - 2);
 
-		const deletedItems = remainingTodos.filter((t) => todoIds.includes(t.id));
+		const deletedItems = remainingTodos.filter((todo) => todoIds.includes(todo.id));
 		expect(deletedItems.length).toBe(0);
 	});
 });
@@ -227,12 +279,20 @@ describe('Bulk Operations', () => {
 describe('Dashboard Statistics', () => {
 	test('GET stats - calculates statistics correctly', async () => {
 		await clearTodos();
-
-		// Create todos with known distribution
 		await createTestTodo({ text: 'Todo 1', status: 'todo', priority: 'high', label: 'feature' });
 		await createTestTodo({ text: 'Todo 2', status: 'done', priority: 'medium', label: 'bug' });
-		await createTestTodo({ text: 'Todo 3', status: 'in progress', priority: 'low', label: 'feature' });
-		await createTestTodo({ text: 'Todo 4', status: 'todo', priority: 'high', label: 'documentation' });
+		await createTestTodo({
+			text: 'Todo 3',
+			status: 'in progress',
+			priority: 'low',
+			label: 'feature'
+		});
+		await createTestTodo({
+			text: 'Todo 4',
+			status: 'todo',
+			priority: 'high',
+			label: 'documentation'
+		});
 
 		const [
 			totalTodos,
@@ -242,15 +302,56 @@ describe('Dashboard Statistics', () => {
 			completedTodos,
 			inProgressTodos,
 			highPriorityTodos
-		] = await Promise.all([
-			db.selectFrom('todo').select(db.fn.count<number>('id').as('count')).where('organization_id', '=', organizationId).execute(),
-			db.selectFrom('todo').select(['status', db.fn.count<number>('id').as('count')]).where('organization_id', '=', organizationId).groupBy('status').execute(),
-			db.selectFrom('todo').select(['priority', db.fn.count<number>('id').as('count')]).where('organization_id', '=', organizationId).groupBy('priority').execute(),
-			db.selectFrom('todo').select(['label', db.fn.count<number>('id').as('count')]).where('organization_id', '=', organizationId).groupBy('label').execute(),
-			db.selectFrom('todo').select(db.fn.count<number>('id').as('count')).where('organization_id', '=', organizationId).where('status', '=', 'done').execute(),
-			db.selectFrom('todo').select(db.fn.count<number>('id').as('count')).where('organization_id', '=', organizationId).where('status', '=', 'in progress').execute(),
-			db.selectFrom('todo').select(db.fn.count<number>('id').as('count')).where('organization_id', '=', organizationId).where('priority', '=', 'high').where('status', '=', 'todo').execute()
-		]);
+		] = await runEffect(
+			tryPromise(
+				() =>
+					Promise.all([
+						db
+							.selectFrom('todo')
+							.select(db.fn.count<number>('id').as('count'))
+							.where('organization_id', '=', organizationId)
+							.execute(),
+						db
+							.selectFrom('todo')
+							.select(['status', db.fn.count<number>('id').as('count')])
+							.where('organization_id', '=', organizationId)
+							.groupBy('status')
+							.execute(),
+						db
+							.selectFrom('todo')
+							.select(['priority', db.fn.count<number>('id').as('count')])
+							.where('organization_id', '=', organizationId)
+							.groupBy('priority')
+							.execute(),
+						db
+							.selectFrom('todo')
+							.select(['label', db.fn.count<number>('id').as('count')])
+							.where('organization_id', '=', organizationId)
+							.groupBy('label')
+							.execute(),
+						db
+							.selectFrom('todo')
+							.select(db.fn.count<number>('id').as('count'))
+							.where('organization_id', '=', organizationId)
+							.where('status', '=', 'done')
+							.execute(),
+						db
+							.selectFrom('todo')
+							.select(db.fn.count<number>('id').as('count'))
+							.where('organization_id', '=', organizationId)
+							.where('status', '=', 'in progress')
+							.execute(),
+						db
+							.selectFrom('todo')
+							.select(db.fn.count<number>('id').as('count'))
+							.where('organization_id', '=', organizationId)
+							.where('priority', '=', 'high')
+							.where('status', '=', 'todo')
+							.execute()
+					]),
+				'Failed to calculate dashboard statistics'
+			)
+		);
 
 		const totalCount = Number(totalTodos[0]?.count) || 0;
 		const completedCount = Number(completedTodos[0]?.count) || 0;
@@ -263,9 +364,12 @@ describe('Dashboard Statistics', () => {
 		expect(completionRate).toBe(25);
 
 		const statusMap: Record<string, number> = {};
-		for (const r of todosByStatus) {
-			if (typeof r.status === 'string') statusMap[r.status] = Number(r.count) || 0;
+		for (const row of todosByStatus) {
+			if (typeof row.status === 'string') {
+				statusMap[row.status] = Number(row.count) || 0;
+			}
 		}
+
 		expect(statusMap).toEqual({
 			todo: 2,
 			done: 1,
@@ -273,9 +377,12 @@ describe('Dashboard Statistics', () => {
 		});
 
 		const priorityMap: Record<string, number> = {};
-		for (const r of todosByPriority) {
-			if (typeof r.priority === 'string') priorityMap[r.priority] = Number(r.count) || 0;
+		for (const row of todosByPriority) {
+			if (typeof row.priority === 'string') {
+				priorityMap[row.priority] = Number(row.count) || 0;
+			}
 		}
+
 		expect(priorityMap).toEqual({
 			high: 2,
 			medium: 1,
@@ -283,9 +390,12 @@ describe('Dashboard Statistics', () => {
 		});
 
 		const labelMap: Record<string, number> = {};
-		for (const r of todosByLabel) {
-			if (typeof r.label === 'string') labelMap[r.label] = Number(r.count) || 0;
+		for (const row of todosByLabel) {
+			if (typeof row.label === 'string') {
+				labelMap[row.label] = Number(row.count) || 0;
+			}
 		}
+
 		expect(labelMap).toEqual({
 			feature: 2,
 			bug: 1,
@@ -296,11 +406,17 @@ describe('Dashboard Statistics', () => {
 	test('GET stats - handles empty state', async () => {
 		await clearTodos();
 
-		const totalTodos = await db
-			.selectFrom('todo')
-			.select(db.fn.count<number>('id').as('count'))
-			.where('organization_id', '=', organizationId)
-			.execute();
+		const totalTodos = await runEffect(
+			tryPromise(
+				() =>
+					db
+						.selectFrom('todo')
+						.select(db.fn.count<number>('id').as('count'))
+						.where('organization_id', '=', organizationId)
+						.execute(),
+				'Failed to fetch empty-state dashboard statistics'
+			)
+		);
 
 		expect(Number(totalTodos[0]?.count) || 0).toBe(0);
 	});
@@ -317,14 +433,20 @@ describe('Dashboard Activity', () => {
 		start.setHours(0, 0, 0, 0);
 		start.setDate(start.getDate() - 29);
 
-		const createdActivity = await db
-			.selectFrom('todo')
-			.select(['created_at as date', 'status', db.fn.count<number>('id').as('count')])
-			.where('organization_id', '=', organizationId)
-			.where('created_at', '>=', start)
-			.groupBy(['created_at', 'status'])
-			.orderBy('created_at')
-			.execute();
+		const createdActivity = await runEffect(
+			tryPromise(
+				() =>
+					db
+						.selectFrom('todo')
+						.select(['created_at as date', 'status', db.fn.count<number>('id').as('count')])
+						.where('organization_id', '=', organizationId)
+						.where('created_at', '>=', start)
+						.groupBy(['created_at', 'status'])
+						.orderBy('created_at')
+						.execute(),
+				'Failed to fetch dashboard activity'
+			)
+		);
 
 		expect(createdActivity.length).toBeGreaterThan(0);
 	});
@@ -332,12 +454,18 @@ describe('Dashboard Activity', () => {
 
 describe('Error Handling', () => {
 	test('DELETE - handles non-existent id', async () => {
-		const deleted = await db
-			.deleteFrom('todo')
-			.where('id', '=', 999999)
-			.where('organization_id', '=', organizationId)
-			.returningAll()
-			.execute();
+		const deleted = await runEffect(
+			tryPromise(
+				() =>
+					db
+						.deleteFrom('todo')
+						.where('id', '=', 999999)
+						.where('organization_id', '=', organizationId)
+						.returningAll()
+						.execute(),
+				'Failed to delete non-existent todo'
+			)
+		);
 
 		expect(deleted.length).toBe(0);
 	});

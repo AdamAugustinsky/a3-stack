@@ -5,6 +5,7 @@ import type { DB } from './db/db.types';
 import { db } from './db';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
+import { Effect } from 'effect';
 
 export const createAuth = (db: Kysely<DB>) =>
 	betterAuth({
@@ -22,4 +23,4 @@ export const createAuth = (db: Kysely<DB>) =>
 		plugins: [sveltekitCookies(getRequestEvent), organization()]
 	});
 
-export const auth = createAuth(db);
+export const auth = Effect.runSync(Effect.sync(() => createAuth(db)));

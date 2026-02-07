@@ -1,7 +1,7 @@
-import { form } from '$app/server';
+import { form, getRequestEvent } from '$app/server';
 import { auth } from '$lib/server/auth';
-import { error } from '@sveltejs/kit';
-import { getRequestEvent } from '$app/server';
+import { failHttp, requireValue, runServerEffect, tryPromise } from '$lib/server/effect';
+import { Effect } from 'effect';
 import * as v from 'valibot';
 
 const updateProfileSchema = v.object({
@@ -12,28 +12,39 @@ const updateProfileSchema = v.object({
 	)
 });
 
-export const updateProfile = form(updateProfileSchema, async ({ name }) => {
-	const event = getRequestEvent();
-	if (!event) {
-		error(500, 'Request context not available');
-	}
+export const updateProfile = form(updateProfileSchema, ({ name }) =>
+	runServerEffect(
+		Effect.gen(function* () {
+			const event = getRequestEvent();
 
-	const session = await auth.api.getSession({
-		headers: event.request.headers
-	});
+			const session = yield* tryPromise(
+				() =>
+					auth.api.getSession({
+						headers: event.request.headers
+					}),
+				{
+					message: 'Failed to load session'
+				}
+			);
 
-	if (!session) {
-		error(401, 'Unauthorized');
-	}
+			yield* requireValue(session, 401, 'Unauthorized');
 
-	const response = await auth.api.updateUser({
-		body: { name },
-		headers: event.request.headers
-	});
+			const user = yield* tryPromise(
+				() =>
+					auth.api.updateUser({
+						body: { name },
+						headers: event.request.headers
+					}),
+				{
+					message: 'Failed to update profile'
+				}
+			);
 
-	if (!response) {
-		error(500, 'Failed to update profile');
-	}
+			if (!user) {
+				yield* failHttp(500, 'Failed to update profile');
+			}
 
-	return { success: true, user: response };
-});
+			return { success: true, user };
+		})
+	)
+);

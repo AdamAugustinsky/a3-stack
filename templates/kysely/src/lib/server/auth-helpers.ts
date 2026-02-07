@@ -1,27 +1,40 @@
 import { getRequestEvent } from '$app/server';
-import { error } from '@sveltejs/kit';
+import { Effect } from 'effect';
 import { auth } from './auth';
+import { requireValue, runServerEffect, tryPromise } from './effect';
 
 /**
  * Get organization context for the current request.
  * Validates that the user has access to the organization.
  */
 export async function getOrganizationContext(organizationSlug: string) {
-	const event = getRequestEvent();
-	const headers = new Headers(event.request.headers);
+	return runServerEffect(
+		Effect.gen(function* () {
+			const event = getRequestEvent();
+			const headers = new Headers(event.request.headers);
 
-	const organization = await auth.api.getFullOrganization({
-		headers,
-		query: { organizationSlug }
-	});
+			const organization = yield* tryPromise(
+				() =>
+					auth.api.getFullOrganization({
+						headers,
+						query: { organizationSlug }
+					}),
+				{
+					message: 'Failed to fetch organization context'
+				}
+			);
 
-	if (!organization) {
-		error(401, 'Organization not found or access denied');
-	}
+			const resolvedOrganization = yield* requireValue(
+				organization,
+				401,
+				'Organization not found or access denied'
+			);
 
-	return {
-		organizationId: organization.id,
-		organizationSlug: organization.slug,
-		organization
-	};
+			return {
+				organizationId: resolvedOrganization.id,
+				organizationSlug: resolvedOrganization.slug,
+				organization: resolvedOrganization
+			};
+		})
+	);
 }

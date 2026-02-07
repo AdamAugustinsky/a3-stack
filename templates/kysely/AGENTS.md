@@ -82,10 +82,12 @@ This template is a Bun-first starter for multi-tenant web apps using SvelteKit 5
 ## Code Quality
 
 - Prefer direct, obvious code over abstractions.
-- Wrap errors with context (`cause`) where useful.
-- No empty catch blocks.
-- Keep server-controlled timestamps.
-- Follow existing module and folder conventions before introducing new patterns.
+- Follow the Scout Rule: leave every touched file cleaner than you found it with small, safe improvements.
+- No `any` or `ts-expect-error`. Use precise types, use TypeScript features properly (type inference) and Valibot schemas where necessary.
+- Wrap errors with `cause`. No empty catch blocks.
+- Server controls timestamps; never trust client-provided timestamps.
+- Prefer doing data aggregations/transformations in SQL, not JS.
+- Create code around data structures and algorithms, not the other way around.
 
 ## Commands
 
