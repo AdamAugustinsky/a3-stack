@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+"$root/scripts/check-session-log.sh" || true
+"$root/scripts/check-agent-memory-refresh.sh" || true
