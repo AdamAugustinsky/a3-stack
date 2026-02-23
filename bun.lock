@@ -10,7 +10,7 @@
     },
     "packages/a3-cli": {
       "name": "a3-stack-cli",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "bin": {
         "a3": "./src/index.ts",
       },
