@@ -51,7 +51,7 @@ export function tryPromise<A>(
 export function runServerEffect<A>(program: Effect.Effect<A, ServerFailure, never>) {
 	return Effect.runPromise(
 		program.pipe(
-			Effect.catchAllDefect((defect) =>
+			Effect.catchDefect((defect) =>
 				Effect.fail(
 					new HttpFailure({
 						status: 500,
@@ -60,7 +60,7 @@ export function runServerEffect<A>(program: Effect.Effect<A, ServerFailure, neve
 					})
 				)
 			),
-			Effect.catchAll((failure) =>
+			Effect.catch((failure) =>
 				Effect.sync(() => {
 					if (failure._tag === 'RedirectFailure') {
 						throw redirect(failure.status, failure.location);
