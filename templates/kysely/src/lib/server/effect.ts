@@ -60,15 +60,28 @@ export function runServerEffect<A>(program: Effect.Effect<A, ServerFailure, neve
 					})
 				)
 			),
-			Effect.catch((failure) =>
-				Effect.sync(() => {
-					if (failure._tag === 'RedirectFailure') {
-						throw redirect(failure.status, failure.location);
-					}
-
-					throw error(failure.status, failure.message);
-				})
-			)
+			Effect.match({
+				onSuccess: (value) =>
+					({
+						_tag: 'Success',
+						value
+					}) as const,
+				onFailure: (failure) =>
+					({
+						_tag: 'Failure',
+						failure
+					}) as const
+			})
 		)
-	);
+	).then((result) => {
+		if (result._tag === 'Success') {
+			return result.value;
+		}
+
+		if (result.failure._tag === 'RedirectFailure') {
+			throw redirect(result.failure.status, result.failure.location);
+		}
+
+		throw error(result.failure.status, result.failure.message);
+	});
 }

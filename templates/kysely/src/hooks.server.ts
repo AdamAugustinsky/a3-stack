@@ -51,7 +51,7 @@ export const handle: Handle = ({ event, resolve }) =>
 				yield* failRedirect(307, '/sign-in');
 			}
 
-			return yield* tryPromise(() => Promise.resolve(resolve(event)), {
+			return yield* tryPromise(async () => resolve(event), {
 				message: 'Failed to resolve request'
 			});
 		})

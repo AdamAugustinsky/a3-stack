@@ -15,6 +15,13 @@ const tryPromise = <A>(run: () => Promise<A>, message: string) =>
 		catch: (cause) => new Error(message, { cause })
 	});
 
+const failTest = (message: string, cause?: unknown) => Effect.fail(new Error(message, { cause }));
+
+const requireTestValue = <A>(value: A | null | undefined, message: string) =>
+	value === null || value === undefined
+		? failTest(message)
+		: Effect.succeed(value as NonNullable<A>);
+
 export const createTestDb = async () =>
 	Effect.runPromise(
 		Effect.gen(function* () {
@@ -78,9 +85,7 @@ export const createTestApp = async () =>
 				() => auth.api.signUpEmail({ body: testUser }),
 				'Failed to create test user'
 			);
-			if (!signupResult?.user) {
-				throw new Error('Failed to create test user');
-			}
+			yield* requireTestValue(signupResult?.user, 'Failed to create test user');
 
 			const signinResult = yield* tryPromise(
 				() =>
@@ -91,13 +96,13 @@ export const createTestApp = async () =>
 				'Failed to sign in test user'
 			);
 			if (signinResult.status !== 200) {
-				throw new Error(`Failed to sign in test user: ${signinResult.status}`);
+				yield* failTest(`Failed to sign in test user: ${signinResult.status}`);
 			}
 
-			const setCookieHeader = signinResult.headers.get('set-cookie');
-			if (!setCookieHeader) {
-				throw new Error('No session cookie returned from sign in');
-			}
+			const setCookieHeader = yield* requireTestValue(
+				signinResult.headers.get('set-cookie'),
+				'No session cookie returned from sign in'
+			);
 
 			const sessionCookie = setCookieHeader.split(';')[0];
 			const headers = new Headers({ cookie: sessionCookie });
@@ -110,14 +115,15 @@ export const createTestApp = async () =>
 					}),
 				'Failed to create test organization'
 			);
-			if (!organizationResult?.id) {
-				throw new Error('Failed to create test organization');
-			}
+			const organizationId = yield* requireTestValue(
+				organizationResult?.id,
+				'Failed to create test organization'
+			);
 
 			yield* tryPromise(
 				() =>
 					auth.api.setActiveOrganization({
-						body: { organizationId: organizationResult.id },
+						body: { organizationId },
 						headers
 					}),
 				'Failed to set active organization'
@@ -128,7 +134,7 @@ export const createTestApp = async () =>
 				db,
 				auth,
 				testUser,
-				organizationId: organizationResult.id,
+				organizationId,
 				organizationSlug: 'test-org',
 				sessionCookie,
 				headers

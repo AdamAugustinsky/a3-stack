@@ -37,9 +37,7 @@ const getTodosSchema = v.object({
 export const getTodos = query(getTodosSchema, ({ organizationSlug, filters }) =>
 	runServerEffect(
 		Effect.gen(function* () {
-			const { organizationId } = yield* tryPromise(() => getOrganizationContext(organizationSlug), {
-				message: 'Failed to resolve organization context'
-			});
+			const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 			let todoQuery = db
 				.selectFrom('todo')
@@ -100,12 +98,7 @@ export const createTodo = form(
 	({ organizationSlug, text, completed, priority, status, label }) =>
 		runServerEffect(
 			Effect.gen(function* () {
-				const { organizationId } = yield* tryPromise(
-					() => getOrganizationContext(organizationSlug),
-					{
-						message: 'Failed to resolve organization context'
-					}
-				);
+				const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 				yield* tryPromise(
 					() =>
@@ -141,9 +134,7 @@ const deleteTodoSchema = v.object({
 export const deleteTodo = command(deleteTodoSchema, ({ organizationSlug, id, filters }) =>
 	runServerEffect(
 		Effect.gen(function* () {
-			const { organizationId } = yield* tryPromise(() => getOrganizationContext(organizationSlug), {
-				message: 'Failed to resolve organization context'
-			});
+			const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 			const deleted = yield* tryPromise(
 				() =>
@@ -206,12 +197,7 @@ export const bulkUpdateTodos = command(
 					yield* failHttp(400, 'No todo IDs provided');
 				}
 
-				const { organizationId } = yield* tryPromise(
-					() => getOrganizationContext(organizationSlug),
-					{
-						message: 'Failed to resolve organization context'
-					}
-				);
+				const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 				const filteredUpdates = Object.fromEntries(
 					Object.entries(updates).filter(([, value]) => value !== undefined)
@@ -263,12 +249,7 @@ export const bulkDeleteTodos = command(
 					yield* failHttp(400, 'No todo IDs provided');
 				}
 
-				const { organizationId } = yield* tryPromise(
-					() => getOrganizationContext(organizationSlug),
-					{
-						message: 'Failed to resolve organization context'
-					}
-				);
+				const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 				const deleted = yield* tryPromise(
 					() =>
@@ -344,9 +325,7 @@ const updateTodoFormSchema = v.object({
 export const updateTodo = form(updateTodoFormSchema, ({ organizationSlug, id, ...maybeUpdates }) =>
 	runServerEffect(
 		Effect.gen(function* () {
-			const { organizationId } = yield* tryPromise(() => getOrganizationContext(organizationSlug), {
-				message: 'Failed to resolve organization context'
-			});
+			const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 			const updates = Object.fromEntries(
 				Object.entries(maybeUpdates).filter(([, value]) => value !== undefined)

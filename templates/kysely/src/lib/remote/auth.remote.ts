@@ -6,11 +6,8 @@ import * as v from 'valibot';
 
 export const getSession = query(() =>
 	runServerEffect(
-		Effect.gen(function* () {
-			const headers = getRequestEvent().request.headers;
-			return yield* tryPromise(() => auth.api.getSession({ headers }), {
-				message: 'Failed to load session'
-			});
+		tryPromise(() => auth.api.getSession({ headers: getRequestEvent().request.headers }), {
+			message: 'Failed to load session'
 		})
 	)
 );
@@ -160,20 +157,14 @@ export const signup = form(signupSchema, (data) =>
 
 export const logout = command(() =>
 	runServerEffect(
-		Effect.gen(function* () {
-			const event = getRequestEvent();
-
-			yield* tryPromise(
-				() =>
-					auth.api.signOut({
-						headers: event.request.headers
-					}),
-				{
-					message: 'Failed to sign out'
-				}
-			);
-
-			return { success: true };
-		})
+		tryPromise(
+			() =>
+				auth.api.signOut({
+					headers: getRequestEvent().request.headers
+				}),
+			{
+				message: 'Failed to sign out'
+			}
+		).pipe(Effect.map(() => ({ success: true })))
 	)
 );

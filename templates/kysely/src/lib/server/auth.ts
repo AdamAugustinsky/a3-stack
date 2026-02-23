@@ -23,4 +23,7 @@ export const createAuth = (db: Kysely<DB>) =>
 		plugins: [sveltekitCookies(getRequestEvent), organization()]
 	});
 
-export const auth = Effect.runSync(Effect.sync(() => createAuth(db)));
+export const createAuthEffect = (database: Kysely<DB>) =>
+	Effect.sync(() => createAuth(database));
+
+export const auth = Effect.runSync(createAuthEffect(db));

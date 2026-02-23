@@ -4,7 +4,7 @@ import { BunPostgresDialect } from 'kysely-bun-sql';
 import { env } from '$env/dynamic/private';
 import { Effect } from 'effect';
 
-const createDb = Effect.sync(
+export const createDb = Effect.sync(
 	() =>
 		new Kysely<DB>({
 			dialect: new BunPostgresDialect({

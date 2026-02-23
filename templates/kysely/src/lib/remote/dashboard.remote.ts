@@ -28,9 +28,7 @@ export const getDashboardStats = query(() =>
 				'Organization slug not found'
 			);
 
-			const { organizationId } = yield* tryPromise(() => getOrganizationContext(organizationSlug), {
-				message: 'Failed to resolve organization context'
-			});
+			const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 			const [
 				totalTodos,
@@ -119,9 +117,7 @@ export const getRecentActivity = query(() =>
 				'Organization slug not found'
 			);
 
-			const { organizationId } = yield* tryPromise(() => getOrganizationContext(organizationSlug), {
-				message: 'Failed to resolve organization context'
-			});
+			const { organizationId } = yield* getOrganizationContext(organizationSlug);
 
 			const end = new Date();
 			const start = new Date(end);

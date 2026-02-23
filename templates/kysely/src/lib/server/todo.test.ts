@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Effect } from 'effect';
 import type { Kysely } from 'kysely';
 import type { DB } from './db/db.types';
+import { type ServerFailure, tryPromise as tryServerPromise } from './effect';
 import { createTestApp } from './test.utils';
 
 let cleanup = () => {};
@@ -9,12 +10,9 @@ let db: Kysely<DB>;
 let organizationId: string;
 
 const tryPromise = <A>(run: () => Promise<A>, message: string) =>
-	Effect.tryPromise({
-		try: run,
-		catch: (cause) => new Error(message, { cause })
-	});
+	tryServerPromise(run, { message });
 
-const runEffect = <A>(effect: Effect.Effect<A, Error, never>) => Effect.runPromise(effect);
+const runEffect = <A>(effect: Effect.Effect<A, ServerFailure, never>) => Effect.runPromise(effect);
 
 beforeAll(async () => {
 	const testApp = await createTestApp();
