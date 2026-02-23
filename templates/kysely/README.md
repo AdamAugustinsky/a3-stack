@@ -64,7 +64,8 @@ If you prefer to configure manually:
 - `bun run dev` - Start development server
 - `bun run build` - Production build
 - `bun run preview` - Preview production build
-- `bun run check` - Type checking
+- `bun run typecheck` - Type-check TypeScript with `tsgo`
+- `bun run check` - Run `svelte-check` + `tsgo` type checking
 - `bun run lint` - ESLint and Prettier checks
 - `bun run format` - Format code with Prettier
 
@@ -225,4 +226,3 @@ MIT
 ---
 
 Happy coding! 🚀
-
