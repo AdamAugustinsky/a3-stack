@@ -1,10 +1,14 @@
 import type { Handle } from '@sveltejs/kit';
 import { resolve as resolveRoute } from '$app/paths';
+import { PUBLIC_CONVEX_URL } from '$env/static/public';
 import { api } from '$convex/api';
 import { createAuth } from '../convex/auth';
 import { createConvexHttpClient, getToken } from '$lib/server/convex-better-auth-sveltekit';
+import { initConvex } from 'convex-sveltekit';
 import { Effect } from 'effect';
 import { failRedirect, runServerEffect, tryPromise } from '$lib/server/effect';
+
+initConvex(PUBLIC_CONVEX_URL);
 
 export const handle: Handle = ({ event, resolve }) =>
 	runServerEffect(
@@ -13,6 +17,7 @@ export const handle: Handle = ({ event, resolve }) =>
 				message: 'Failed to resolve Better Auth token'
 			});
 			event.locals.token = token ?? undefined;
+			event.locals.convexToken = token ?? undefined;
 
 			const isProtectedRoute = event.route.id?.includes('(protected)') ?? false;
 			const isSignRoute = event.route.id === '/sign-in' || event.route.id === '/sign-up';

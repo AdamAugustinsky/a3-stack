@@ -12,27 +12,20 @@
 	import { FilterStore } from '$lib/components/filter/filter-store.svelte';
 	import { todoFilterConfig } from './filter-config';
 	import { page } from '$app/state';
-	import { api } from '$convex/api';
-	import { applyTaskFilters, toTasks, toTodoId, toTodoIds } from '$lib/convex/todos';
-	import { useConvexClient, convexQuery } from 'convex-sveltekit';
+	import { applyTaskFilters, toTasks } from '$lib/convex/todos';
+	import type { PageData } from './$types';
 
-	const convex = useConvexClient();
+	const { data }: { data: PageData } = $props();
 
 	let editingTodo = $state<Task>();
 	let showEditDialog = $state(false);
 	let showCreateDialog = $state(false);
 	let selectedTodos = $state<Task[]>([]);
 	let clearSelectionSignal = $state(0);
-	let isBulkOperationPending = $state(false);
 
 	const filterStore = new FilterStore();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
-
-	const todosQuery = convexQuery(
-		api.todos.listTodos,
-		() => (organizationSlug ? { organizationSlug } : 'skip'),
-		() => ({ keepPreviousData: true })
-	);
+	const todosQuery = $derived(data.todos);
 
 	const todos = $derived.by(() => {
 		const parsed = toTasks(todosQuery.data);
@@ -42,21 +35,6 @@
 
 	function handleOpenCreateDialog() {
 		showCreateDialog = true;
-	}
-
-	async function handleDeleteTodo(todoId: string) {
-		if (!organizationSlug) return;
-		try {
-			const result = await convex.mutation(api.todos.deleteTodo, {
-				organizationSlug,
-				todoId: toTodoId(todoId)
-			});
-			if (!result.deleted) {
-				console.error('Todo not found');
-			}
-		} catch (error) {
-			console.error('Failed to delete todo:', error);
-		}
 	}
 
 	function handleEditTodo(todo: Task) {
@@ -74,88 +52,6 @@
 
 	function handleSelectionChange(selected: Task[]) {
 		selectedTodos = selected;
-	}
-
-	async function handleBulkStatusChange(status: string) {
-		if (!organizationSlug || selectedTodos.length === 0) return;
-
-		isBulkOperationPending = true;
-		try {
-			const todoIds = selectedTodos.map((todo) => todo.docId);
-			await convex.mutation(api.todos.bulkUpdateTodos, {
-				organizationSlug,
-				todoIds: toTodoIds(todoIds),
-				updates: { status: status as 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled' }
-			});
-			selectedTodos = [];
-			clearSelectionSignal++;
-		} catch (error) {
-			console.error('Failed to bulk update status:', error);
-		} finally {
-			isBulkOperationPending = false;
-		}
-	}
-
-	async function handleBulkPriorityChange(priority: string) {
-		if (!organizationSlug || selectedTodos.length === 0) return;
-
-		isBulkOperationPending = true;
-		try {
-			const todoIds = selectedTodos.map((todo) => todo.docId);
-			await convex.mutation(api.todos.bulkUpdateTodos, {
-				organizationSlug,
-				todoIds: toTodoIds(todoIds),
-				updates: { priority: priority as 'low' | 'medium' | 'high' }
-			});
-			selectedTodos = [];
-			clearSelectionSignal++;
-		} catch (error) {
-			console.error('Failed to bulk update priority:', error);
-		} finally {
-			isBulkOperationPending = false;
-		}
-	}
-
-	async function handleBulkLabelChange(label: string) {
-		if (!organizationSlug || selectedTodos.length === 0) return;
-
-		isBulkOperationPending = true;
-		try {
-			const todoIds = selectedTodos.map((todo) => todo.docId);
-			await convex.mutation(api.todos.bulkUpdateTodos, {
-				organizationSlug,
-				todoIds: toTodoIds(todoIds),
-				updates: { label: label as 'bug' | 'feature' | 'documentation' }
-			});
-			selectedTodos = [];
-			clearSelectionSignal++;
-		} catch (error) {
-			console.error('Failed to bulk update label:', error);
-		} finally {
-			isBulkOperationPending = false;
-		}
-	}
-
-	async function handleBulkDelete() {
-		if (!organizationSlug || selectedTodos.length === 0) return;
-
-		isBulkOperationPending = true;
-		try {
-			const todoIds = selectedTodos.map((todo) => todo.docId);
-			const result = await convex.mutation(api.todos.bulkDeleteTodos, {
-				organizationSlug,
-				todoIds: toTodoIds(todoIds)
-			});
-			if (result.deletedCount === 0) {
-				console.error('No todos were deleted');
-			}
-			selectedTodos = [];
-			clearSelectionSignal++;
-		} catch (error) {
-			console.error('Failed to bulk delete todos:', error);
-		} finally {
-			isBulkOperationPending = false;
-		}
 	}
 
 	function handleClearSelection() {
@@ -231,9 +127,9 @@
 		<TodoDataTable
 			data={todos}
 			onEdit={handleEditTodo}
-			onDelete={handleDeleteTodo}
 			onDuplicate={handleDuplicateTodo}
 			onSelectionChange={handleSelectionChange}
+			{organizationSlug}
 			{clearSelectionSignal}
 			{filterStore}
 			{todoFilterConfig}
@@ -272,12 +168,8 @@
 
 <BulkOperationsDock
 	selectedRows={selectedTodos}
-	onBulkStatusChange={handleBulkStatusChange}
-	onBulkPriorityChange={handleBulkPriorityChange}
-	onBulkLabelChange={handleBulkLabelChange}
-	onBulkDelete={handleBulkDelete}
-	onClearSelection={handleClearSelection}
-	isLoading={isBulkOperationPending}
+	{organizationSlug}
+	onComplete={handleClearSelection}
 />
 
 <CreateTodoDialog bind:open={showCreateDialog} />

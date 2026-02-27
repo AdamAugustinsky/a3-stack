@@ -11,7 +11,13 @@
       "Bash(bunx eslint:*)",
       "Bash(ls:*)",
       "Bash(git show:*)",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Bash(hyperfine:*)",
+      "Bash(brew install:*)",
+      "Bash(bunx svelte-check:*)",
+      "Bash(bun run:*)",
+      "Bash(/bin/zsh:*)",
+      "mcp__websearch_exa__web_search_exa"
     ],
     "deny": [],
     "ask": []

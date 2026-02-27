@@ -12,7 +12,8 @@
 	import { page } from '$app/state';
 	import { api } from '$convex/api';
 	import { toTodoId } from '$lib/convex/todos';
-	import { useConvexClient } from 'convex-sveltekit';
+	import { convexForm } from 'convex-sveltekit';
+	import * as v from 'valibot';
 
 	let {
 		open = $bindable(),
@@ -22,16 +23,62 @@
 		todo: Task | undefined;
 	} = $props();
 
-	const convex = useConvexClient();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
 
 	let updateTodoError = $state<string | undefined>();
-	let isLoading = $state(false);
 
 	let text = $state('');
 	let label = $state<'bug' | 'feature' | 'documentation'>('feature');
 	let status = $state<'backlog' | 'todo' | 'in progress' | 'done' | 'canceled'>('todo');
 	let priority = $state<'low' | 'medium' | 'high'>('medium');
+
+	const updateTodoSchema = v.object({
+		text: v.pipe(
+			v.string('Task title is required'),
+			v.trim(),
+			v.nonEmpty('Task title is required')
+		)
+	});
+
+	const updateTodoForm = convexForm(updateTodoSchema, api.todos.updateTodo, (data) => {
+		if (!todo) {
+			throw new Error('Todo is required');
+		}
+
+		if (!organizationSlug) {
+			throw new Error('Organization slug is required');
+		}
+
+		return {
+			organizationSlug,
+			todoId: toTodoId(todo.docId),
+			text: data.text.trim(),
+			label,
+			status,
+			priority
+		};
+	});
+
+	const updateTodoSubmit = updateTodoForm.enhance(async ({ submit }) => {
+		if (!todo) return;
+
+		updateTodoError = undefined;
+		try {
+			const result = await submit();
+			if (!result.found) {
+				updateTodoError = 'Todo not found.';
+				return;
+			}
+
+			open = false;
+			todo = undefined;
+		} catch (error) {
+			updateTodoError =
+				error instanceof Error
+					? error.message
+					: 'An unexpected error occurred. Please try again.';
+		}
+	});
 
 	$effect(() => {
 		if (todo && open) {
@@ -47,43 +94,6 @@
 			updateTodoError = undefined;
 		}
 	});
-
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		if (!todo) return;
-
-		updateTodoError = undefined;
-		isLoading = true;
-
-		try {
-			if (!organizationSlug) {
-				throw new Error('Organization slug is required');
-			}
-			const result = await convex.mutation(api.todos.updateTodo, {
-				organizationSlug,
-				todoId: toTodoId(todo.docId),
-				text: text.trim(),
-				label,
-				status,
-				priority
-			});
-
-			if (!result.found) {
-				updateTodoError = 'Todo not found.';
-				return;
-			}
-
-			open = false;
-			todo = undefined;
-		} catch (error) {
-			updateTodoError =
-				error instanceof Error
-					? error.message
-					: 'An unexpected error occurred. Please try again.';
-		} finally {
-			isLoading = false;
-		}
-	}
 </script>
 
 <Dialog.Root bind:open>
@@ -96,7 +106,7 @@
 		</Dialog.Header>
 
 		{#if todo}
-			<form onsubmit={handleSubmit} class="mt-6 space-y-6">
+			<form {...updateTodoSubmit} class="mt-6 space-y-6">
 				{#if updateTodoError}
 					<Alert.Root variant="destructive">
 						<CircleAlertIcon class="size-4" />
@@ -110,11 +120,15 @@
 					<Textarea
 						id="task-title"
 						name="text"
+						required
 						bind:value={text}
 						placeholder="What needs to be done?"
 						rows={2}
 						class="resize-none"
 					/>
+					{#if updateTodoForm.fields.text.issues()?.[0]}
+						<p class="text-sm text-destructive">{updateTodoForm.fields.text.issues()?.[0]?.message}</p>
+					{/if}
 					<p class="text-sm text-muted-foreground">Give your task a clear, descriptive title.</p>
 				</div>
 
@@ -201,8 +215,8 @@
 					>
 						Cancel
 					</Button>
-					<Button type="submit" disabled={isLoading || !text?.trim()}>
-						{#if isLoading}
+					<Button type="submit" disabled={updateTodoForm.pending > 0 || !text?.trim()}>
+						{#if updateTodoForm.pending > 0}
 							<div
 								class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"
 							></div>

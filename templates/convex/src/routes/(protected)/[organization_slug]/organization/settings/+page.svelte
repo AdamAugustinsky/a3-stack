@@ -35,22 +35,17 @@
 	import UserPlusIcon from '@tabler/icons-svelte/icons/user-plus';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-sveltekit';
+	import { convexCommand, convexForm } from 'convex-sveltekit';
+	import * as v from 'valibot';
 
 	type OrganizationRole = 'member' | 'admin' | 'owner';
 
 	let { data }: { data: PageData } = $props();
-
-	const convex = useConvexClient();
 	const user = $derived(data.user);
-	const organizationSlug = $derived(page.params.organization_slug ?? '');
-
-	let activeOrganization = $state<PageData['activeOrganization']>(null);
-	let organizationLoading = $state(false);
-	let organizationError = $state<string | undefined>();
+	const activeOrganizationQuery = $derived(data.activeOrganization);
+	const activeOrganization = $derived(activeOrganizationQuery.data ?? null);
 
 	let isEditing = $state(false);
 	let showInviteDialog = $state(false);
@@ -59,21 +54,13 @@
 	let editSlug = $state('');
 	let editLogo = $state('');
 	let slugManuallyEdited = $state(false);
-	let organizationFormPending = $state(false);
 	let organizationFormError = $state<string | undefined>();
 	let inviteEmail = $state('');
 	let inviteRole = $state<OrganizationRole>('member');
-	let invitePending = $state(false);
 	let inviteError = $state<string | undefined>();
 
 	const members = $derived(activeOrganization?.members ?? []);
 	const invitations = $derived(activeOrganization?.invitations ?? []);
-
-	$effect(() => {
-		if (!activeOrganization && data.activeOrganization) {
-			activeOrganization = data.activeOrganization;
-		}
-	});
 
 	$effect(() => {
 		if (isEditing && activeOrganization) {
@@ -95,16 +82,6 @@
 	$effect(() => {
 		if (isEditing && !slugManuallyEdited && editName) {
 			editSlug = generateSlug(editName);
-		}
-	});
-
-	$effect(() => {
-		if (
-			organizationSlug &&
-			activeOrganization?.slug &&
-			activeOrganization.slug !== organizationSlug
-		) {
-			void refreshOrganization();
 		}
 	});
 
@@ -139,58 +116,63 @@
 		);
 	}
 
-	async function refreshOrganization() {
-		if (!organizationSlug) return;
-		organizationLoading = true;
-		organizationError = undefined;
-		try {
-			activeOrganization = await convex.query(api.organizations.getOrganizationBySlug, {
-				organizationSlug
-			});
-		} catch (error) {
-			organizationError =
-				error instanceof Error ? error.message : 'Failed to refresh organization.';
-		} finally {
-			organizationLoading = false;
-		}
-	}
-
 	function handleCancelEdit() {
 		isEditing = false;
 		slugManuallyEdited = false;
 		organizationFormError = undefined;
 	}
+	const updateMemberRoleCommand = convexCommand(api.organizations.updateMemberRole);
+	const removeMemberCommand = convexCommand(api.organizations.removeMember);
+	const cancelInvitationCommand = convexCommand(api.organizations.cancelInvitation);
+	const deleteOrganizationCommand = convexCommand(api.organizations.deleteOrganization);
+	const setActiveOrganizationCommand = convexCommand(api.organizations.setActiveOrganization);
 
-	async function handleUpdateOrganization(event: SubmitEvent) {
-		event.preventDefault();
+	const updateOrganizationSchema = v.object({
+		name: v.pipe(
+			v.string('Organization name is required.'),
+			v.trim(),
+			v.nonEmpty('Organization name is required.')
+		),
+		slug: v.pipe(
+			v.string('Slug is required.'),
+			v.trim(),
+			v.nonEmpty('Slug is required.'),
+			v.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must use lowercase letters, numbers, and hyphens.')
+		),
+		logo: v.optional(v.string())
+	});
+
+	const updateOrganizationForm = convexForm(
+		updateOrganizationSchema,
+		api.organizations.updateOrganization,
+		(formData) => {
+			if (!activeOrganization) {
+				throw new Error('Organization not found.');
+			}
+
+			return {
+				organizationId: activeOrganization.id,
+				data: {
+					name: formData.name.trim(),
+					slug: formData.slug.trim(),
+					logo: formData.logo?.trim() ? formData.logo.trim() : undefined
+				}
+			};
+		}
+	);
+
+	const submitUpdateOrganization = updateOrganizationForm.enhance(async ({ submit }) => {
 		if (!activeOrganization) return;
 
 		organizationFormError = undefined;
-		const nextName = editName.trim();
 		const nextSlug = editSlug.trim();
-		const nextLogo = editLogo.trim();
-
-		if (!nextName) {
-			organizationFormError = 'Organization name is required.';
-			return;
-		}
 
 		if (!nextSlug || !isValidSlug(nextSlug)) {
-			organizationFormError = 'Slug must use lowercase letters, numbers, and hyphens.';
 			return;
 		}
 
-		organizationFormPending = true;
 		try {
-			await convex.mutation(api.organizations.updateOrganization, {
-				organizationId: activeOrganization.id,
-				data: {
-					name: nextName,
-					slug: nextSlug,
-					logo: nextLogo || undefined
-				}
-			});
-
+			await submit();
 			toast.success('Organization details updated successfully.');
 			isEditing = false;
 			slugManuallyEdited = false;
@@ -201,29 +183,60 @@
 						organization_slug: nextSlug
 					})
 				);
-				return;
 			}
-
-			await refreshOrganization();
 		} catch (error) {
 			organizationFormError =
 				error instanceof Error ? error.message : 'Failed to update organization details.';
 			toast.error('Failed to update organization details.');
-		} finally {
-			organizationFormPending = false;
 		}
-	}
+	});
+
+	const inviteMemberSchema = v.object({
+		email: v.pipe(
+			v.string('Email is required.'),
+			v.trim(),
+			v.nonEmpty('Email is required.'),
+			v.email('Please enter a valid email.')
+		),
+		role: v.union([v.literal('member'), v.literal('admin'), v.literal('owner')], 'Invalid role')
+	});
+
+	const inviteMemberForm = convexForm(inviteMemberSchema, api.organizations.createInvitation, (formData) => {
+		if (!activeOrganization) {
+			throw new Error('Organization not found.');
+		}
+
+		return {
+			email: formData.email.trim(),
+			role: formData.role as OrganizationRole,
+			organizationId: activeOrganization.id
+		};
+	});
+
+	const submitInviteMember = inviteMemberForm.enhance(async ({ submit }) => {
+		if (!activeOrganization) return;
+
+		inviteError = undefined;
+
+		try {
+			await submit();
+			showInviteDialog = false;
+			toast.success('Invitation sent successfully.');
+		} catch (error) {
+			inviteError = error instanceof Error ? error.message : 'Failed to send invitation.';
+			toast.error('Failed to send invitation.');
+		}
+	});
 
 	async function handleUpdateMemberRole(memberId: string, newRole: OrganizationRole) {
 		if (!activeOrganization) return;
 		try {
-			await convex.mutation(api.organizations.updateMemberRole, {
+			await updateMemberRoleCommand({
 				memberId,
 				role: newRole,
 				organizationId: activeOrganization.id
 			});
 			toast.success('Member role updated.');
-			await refreshOrganization();
 		} catch {
 			toast.error('Failed to update member role.');
 		}
@@ -232,12 +245,11 @@
 	async function handleRemoveMember(memberId: string, userEmail: string | undefined) {
 		if (!activeOrganization) return;
 		try {
-			await convex.mutation(api.organizations.removeMember, {
+			await removeMemberCommand({
 				memberIdOrEmail: userEmail ?? memberId,
 				organizationId: activeOrganization.id
 			});
 			toast.success('Member removed from organization.');
-			await refreshOrganization();
 		} catch {
 			toast.error('Failed to remove member.');
 		}
@@ -245,9 +257,8 @@
 
 	async function handleCancelInvitation(invitationId: string) {
 		try {
-			await convex.mutation(api.organizations.cancelInvitation, { invitationId });
+			await cancelInvitationCommand({ invitationId });
 			toast.success('Invitation cancelled.');
-			await refreshOrganization();
 		} catch {
 			toast.error('Failed to cancel invitation.');
 		}
@@ -256,42 +267,13 @@
 	async function handleDeleteOrganization() {
 		if (!activeOrganization) return;
 		try {
-			await convex.mutation(api.organizations.deleteOrganization, {
+			await deleteOrganizationCommand({
 				organizationId: activeOrganization.id
 			});
-			await convex.mutation(api.organizations.setActiveOrganization, { organizationId: null });
-			goto('/sign-in');
+			await setActiveOrganizationCommand({ organizationId: null });
+			await goto('/sign-in');
 		} catch {
 			toast.error('Failed to delete organization.');
-		}
-	}
-
-	async function handleInviteMember(event: SubmitEvent) {
-		event.preventDefault();
-		if (!activeOrganization) return;
-		inviteError = undefined;
-
-		const email = inviteEmail.trim();
-		if (!email) {
-			inviteError = 'Email is required.';
-			return;
-		}
-
-		invitePending = true;
-		try {
-			await convex.mutation(api.organizations.createInvitation, {
-				email,
-				role: inviteRole,
-				organizationId: activeOrganization.id
-			});
-			showInviteDialog = false;
-			toast.success('Invitation sent successfully.');
-			await refreshOrganization();
-		} catch (error) {
-			inviteError = error instanceof Error ? error.message : 'Failed to send invitation.';
-			toast.error('Failed to send invitation.');
-		} finally {
-			invitePending = false;
 		}
 	}
 
@@ -329,10 +311,10 @@
 		{/if}
 	</div>
 
-	{#if organizationLoading && !activeOrganization}
+	{#if activeOrganizationQuery.isLoading && !activeOrganization}
 		<p class="text-sm text-muted-foreground">Loading organization...</p>
-	{:else if organizationError && !activeOrganization}
-		<p class="text-sm text-destructive">{organizationError}</p>
+	{:else if activeOrganizationQuery.error && !activeOrganization}
+		<p class="text-sm text-destructive">Failed to load organization settings.</p>
 	{:else if activeOrganization}
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 			<Card class="gap-4 py-4 shadow-xs md:col-span-2">
@@ -365,7 +347,7 @@
 					</div>
 
 					{#if isEditing}
-						<form onsubmit={handleUpdateOrganization} class="grid gap-4">
+						<form {...submitUpdateOrganization} class="grid gap-4">
 							{#if organizationFormError}
 								<p class="text-xs text-destructive">{organizationFormError}</p>
 							{/if}
@@ -374,21 +356,35 @@
 								<Label for="name">Organization Name</Label>
 								<Input
 									id="name"
+									name="name"
+									required
 									placeholder="Enter organization name"
-									disabled={organizationFormPending}
+									disabled={updateOrganizationForm.pending > 0}
 									bind:value={editName}
 								/>
+								{#if updateOrganizationForm.fields.name.issues()?.[0]}
+									<p class="text-xs text-destructive">
+										{updateOrganizationForm.fields.name.issues()?.[0]?.message}
+									</p>
+								{/if}
 							</div>
 
 							<div class="grid gap-2">
 								<Label for="slug">Organization Slug</Label>
 								<Input
 									id="slug"
+									name="slug"
+									required
 									placeholder="organization-slug"
-									disabled={organizationFormPending}
+									disabled={updateOrganizationForm.pending > 0}
 									bind:value={editSlug}
 									oninput={() => (slugManuallyEdited = true)}
 								/>
+								{#if updateOrganizationForm.fields.slug.issues()?.[0]}
+									<p class="text-xs text-destructive">
+										{updateOrganizationForm.fields.slug.issues()?.[0]?.message}
+									</p>
+								{/if}
 								<p class="text-xs text-muted-foreground">
 									Used in URLs and must be unique. Only lowercase letters, numbers, and hyphens.
 								</p>
@@ -398,18 +394,25 @@
 								<Label for="logo">Logo URL</Label>
 								<Input
 									id="logo"
+									name="logo"
 									placeholder="https://example.com/logo.png"
-									disabled={organizationFormPending}
+									disabled={updateOrganizationForm.pending > 0}
 									bind:value={editLogo}
 								/>
 								<p class="text-xs text-muted-foreground">Provide a URL to your organization's logo.</p>
 							</div>
 
 							<div class="flex flex-col gap-2 pt-2 sm:flex-row">
-								<Button type="submit" size="sm" disabled={organizationFormPending}>
-									{organizationFormPending ? 'Saving...' : 'Save changes'}
+								<Button type="submit" size="sm" disabled={updateOrganizationForm.pending > 0}>
+									{updateOrganizationForm.pending > 0 ? 'Saving...' : 'Save changes'}
 								</Button>
-								<Button type="button" size="sm" variant="outline" onclick={handleCancelEdit} disabled={organizationFormPending}>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onclick={handleCancelEdit}
+									disabled={updateOrganizationForm.pending > 0}
+								>
 									Cancel
 								</Button>
 							</div>
@@ -655,7 +658,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<form onsubmit={handleInviteMember} class="contents">
+		<form {...submitInviteMember} class="contents">
 			<div class="space-y-3.5 px-5 py-4">
 				{#if inviteError}
 					<p class="text-xs text-destructive">{inviteError}</p>
@@ -665,18 +668,26 @@
 					<Label for="email">Email</Label>
 					<Input
 						id="email"
+						name="email"
 						type="email"
+						required
 						placeholder="colleague@example.com"
-						disabled={invitePending}
+						disabled={inviteMemberForm.pending > 0}
 						bind:value={inviteEmail}
 					/>
+					{#if inviteMemberForm.fields.email.issues()?.[0]}
+						<p class="text-xs text-destructive">
+							{inviteMemberForm.fields.email.issues()?.[0]?.message}
+						</p>
+					{/if}
 				</div>
 
 				<div class="grid gap-2">
 					<Label for="role">Role</Label>
 					<select
 						id="role"
-						disabled={invitePending}
+						name="role"
+						disabled={inviteMemberForm.pending > 0}
 						bind:value={inviteRole}
 						class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
@@ -684,15 +695,26 @@
 						<option value="admin">Admin</option>
 						{#if isOwner}<option value="owner">Owner</option>{/if}
 					</select>
+					{#if inviteMemberForm.fields.role.issues()?.[0]}
+						<p class="text-xs text-destructive">
+							{inviteMemberForm.fields.role.issues()?.[0]?.message}
+						</p>
+					{/if}
 				</div>
 			</div>
 
 			<Dialog.Footer class="border-t bg-muted/30 px-5 py-3">
-				<Button type="button" size="sm" variant="ghost" onclick={() => (showInviteDialog = false)} disabled={invitePending}>
+				<Button
+					type="button"
+					size="sm"
+					variant="ghost"
+					onclick={() => (showInviteDialog = false)}
+					disabled={inviteMemberForm.pending > 0}
+				>
 					Cancel
 				</Button>
-				<Button type="submit" size="sm" disabled={invitePending}>
-					{#if invitePending}
+				<Button type="submit" size="sm" disabled={inviteMemberForm.pending > 0}>
+					{#if inviteMemberForm.pending > 0}
 						Sending...
 					{:else}
 						<SendIcon class="mr-2 size-4" />

@@ -19,25 +19,25 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-sveltekit';
+	import { convexForm } from 'convex-sveltekit';
+	import * as v from 'valibot';
 
 	const { data }: { data: PageData } = $props();
-	const convex = useConvexClient();
+	const userQuery = $derived(data.user);
+	const user = $derived(userQuery.data);
+	const userId = $derived((user?.userId as string | null | undefined) ?? user?._id ?? '');
 
 	let isEditing = $state(false);
-	let isSaving = $state(false);
 	let name = $state('');
-	let nameError = $state<string | undefined>();
 
 	$effect(() => {
 		if (!isEditing) {
-			name = data.user.name;
-			nameError = undefined;
+			name = user?.name ?? '';
 		}
 	});
 
 	const initials = $derived(
-		data.user.name
+		(user?.name ?? 'U')
 			.split(' ')
 			.map((word) => word[0])
 			.join('')
@@ -45,20 +45,38 @@
 			.slice(0, 2)
 	);
 
-	const formatDate = (dateString: string) => {
-		return new Date(dateString).toLocaleDateString('en-US', {
+	const formatDate = (dateValue: string | number | Date | null | undefined) => {
+		const date = dateValue instanceof Date ? dateValue : new Date(dateValue ?? Date.now());
+		return date.toLocaleDateString('en-US', {
 			year: 'numeric',
 			month: 'long',
 			day: 'numeric'
 		});
 	};
 
-	function validateName(value: string): string | undefined {
-		const trimmed = value.trim();
-		if (trimmed.length < 2) return 'Name must be at least 2 characters';
-		if (trimmed.length > 100) return 'Name must be less than 100 characters';
-		return undefined;
-	}
+	const updateProfileSchema = v.object({
+		name: v.pipe(
+			v.string('Name is required'),
+			v.trim(),
+			v.minLength(2, 'Name must be at least 2 characters'),
+			v.maxLength(100, 'Name must be less than 100 characters')
+		)
+	});
+
+	const updateProfileForm = convexForm(updateProfileSchema, api.users.updateProfile, (formData) => ({
+		name: formData.name.trim()
+	}));
+
+	const submitProfileForm = updateProfileForm.enhance(async ({ submit }) => {
+		try {
+			await submit();
+			toast.success('Profile updated successfully.');
+			await invalidateAll();
+			isEditing = false;
+		} catch {
+			toast.error('Failed to save profile. Please try again.');
+		}
+	});
 
 	function handleCancel() {
 		isEditing = false;
@@ -66,24 +84,6 @@
 
 	function startEdit() {
 		isEditing = true;
-	}
-
-	async function handleSave(event: SubmitEvent) {
-		event.preventDefault();
-		nameError = validateName(name);
-		if (nameError) return;
-
-		isSaving = true;
-		try {
-			await convex.mutation(api.users.updateProfile, { name: name.trim() });
-			toast.success('Profile updated successfully.');
-			await invalidateAll();
-			isEditing = false;
-		} catch {
-			toast.error('Failed to save profile. Please try again.');
-		} finally {
-			isSaving = false;
-		}
 	}
 
 	function copy(text: string) {
@@ -119,12 +119,12 @@
 			<CardHeader class="px-5 pb-0">
 				<div class="flex items-center gap-4">
 					<Avatar class="size-16 shrink-0 sm:size-20">
-						<AvatarImage src={data.user.image} alt={data.user.name} />
+						<AvatarImage src={user?.image ?? undefined} alt={user?.name ?? 'User'} />
 						<AvatarFallback class="text-base sm:text-lg">{initials}</AvatarFallback>
 					</Avatar>
 					<div class="min-w-0 space-y-1">
-						<CardTitle class="truncate text-lg font-semibold">{data.user.name}</CardTitle>
-						<CardDescription class="truncate text-sm text-muted-foreground">{data.user.email}</CardDescription>
+						<CardTitle class="truncate text-lg font-semibold">{user?.name ?? 'Unknown user'}</CardTitle>
+						<CardDescription class="truncate text-sm text-muted-foreground">{user?.email ?? 'No email'}</CardDescription>
 					</div>
 				</div>
 			</CardHeader>
@@ -137,18 +137,21 @@
 				</div>
 
 				{#if isEditing}
-					<form onsubmit={handleSave} class="grid gap-4">
+					<form {...submitProfileForm} class="grid gap-4">
 						<div class="grid gap-2">
 							<Label for="name">Full Name</Label>
 							<Input
 								id="name"
 								name="name"
+								required
 								placeholder="Enter your full name"
-								disabled={isSaving}
+								disabled={updateProfileForm.pending > 0}
 								bind:value={name}
 							/>
-							{#if nameError}
-								<p class="text-xs text-destructive">{nameError}</p>
+							{#if updateProfileForm.fields.name.issues()?.[0]}
+								<p class="text-xs text-destructive">
+									{updateProfileForm.fields.name.issues()?.[0]?.message}
+								</p>
 							{/if}
 							<p class="text-xs text-muted-foreground">
 								Use your real name so people can recognize you.
@@ -159,7 +162,7 @@
 							<Label for="email">Email Address</Label>
 							<div class="flex items-center space-x-2 py-1">
 								<MailIcon class="size-4 shrink-0 text-muted-foreground" />
-								<span class="truncate text-sm">{data.user.email}</span>
+								<span class="truncate text-sm">{user?.email ?? 'No email'}</span>
 								<span class="text-xs whitespace-nowrap text-muted-foreground"
 									>(Email cannot be changed)</span
 								>
@@ -167,10 +170,15 @@
 						</div>
 
 						<div class="flex flex-col gap-2 pt-2 sm:flex-row">
-							<Button type="submit" disabled={isSaving}>
-								{isSaving ? 'Saving...' : 'Save Changes'}
+							<Button type="submit" disabled={updateProfileForm.pending > 0}>
+								{updateProfileForm.pending > 0 ? 'Saving...' : 'Save Changes'}
 							</Button>
-							<Button type="button" variant="outline" onclick={handleCancel} disabled={isSaving}>
+							<Button
+								type="button"
+								variant="outline"
+								onclick={handleCancel}
+								disabled={updateProfileForm.pending > 0}
+							>
 								Cancel
 							</Button>
 						</div>
@@ -181,7 +189,7 @@
 							<Label for="name">Full Name</Label>
 							<div class="flex items-center space-x-2 py-1">
 								<UserIcon class="size-4 shrink-0 text-muted-foreground" />
-								<span class="truncate text-sm">{data.user.name}</span>
+								<span class="truncate text-sm">{user?.name ?? 'Unknown user'}</span>
 							</div>
 						</div>
 
@@ -189,7 +197,7 @@
 							<Label for="email">Email Address</Label>
 							<div class="flex items-center space-x-2 py-1">
 								<MailIcon class="size-4 shrink-0 text-muted-foreground" />
-								<span class="truncate text-sm">{data.user.email}</span>
+								<span class="truncate text-sm">{user?.email ?? 'No email'}</span>
 								<span class="text-xs whitespace-nowrap text-muted-foreground"
 									>(Email cannot be changed)</span
 								>
@@ -213,7 +221,7 @@
 							<span class="text-sm font-medium">Created</span>
 						</div>
 						<span class="truncate text-sm text-muted-foreground">
-							{formatDate(data.user.createdAt.toString())}
+							{formatDate(user?.createdAt as string | number | Date | undefined)}
 						</span>
 					</div>
 
@@ -223,12 +231,12 @@
 							<span class="text-sm font-medium">User ID</span>
 						</div>
 						<div class="flex max-w-[65%] items-center gap-2">
-							<span class="truncate font-mono text-xs text-muted-foreground">{data.user.id}</span>
+							<span class="truncate font-mono text-xs text-muted-foreground">{userId || '-'}</span>
 							<Button
 								size="sm"
 								variant="outline"
 								class="shrink-0"
-								onclick={() => copy(data.user.id)}
+								onclick={() => copy(userId)}
 							>
 								Copy
 							</Button>
@@ -241,7 +249,7 @@
 							<span class="text-sm font-medium">Email Verified</span>
 						</div>
 						<span class="text-sm whitespace-nowrap">
-							{#if data.user.emailVerified}
+							{#if user?.emailVerified}
 								<span class="font-medium text-green-600">✓ Verified</span>
 							{:else}
 								<span class="font-medium text-orange-600">⚠ Not Verified</span>
@@ -261,7 +269,7 @@
 						<div class="space-y-0.5">
 							<p class="text-sm font-medium">Password</p>
 							<p class="text-xs text-muted-foreground">
-								Last updated: {formatDate(data.user.updatedAt.toString())}
+								Last updated: {formatDate(user?.updatedAt as string | number | Date | undefined)}
 							</p>
 						</div>
 						<Button

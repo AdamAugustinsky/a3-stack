@@ -7,13 +7,12 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { api } from '$convex/api';
-	import { useConvexClient, convexQuery } from 'convex-sveltekit';
+	import { convexCommand } from 'convex-sveltekit';
 
 	const { children, data }: { children: Snippet; data: LayoutData } = $props();
-	const convex = useConvexClient();
-
-	const organizationsQuery = convexQuery(api.organizations.listOrganizations, {});
+	const organizationsQuery = $derived(data.organizations);
 	const organizations = $derived(organizationsQuery.data ?? []);
+	const setActiveOrganization = convexCommand(api.organizations.setActiveOrganization);
 
 	// Track what we've already set to avoid duplicate calls
 	let lastSetOrgId: string | null = null;
@@ -26,8 +25,7 @@
 		const organization = orgs.find((org) => org.slug === slug);
 		if (organization && organization.id !== lastSetOrgId) {
 			lastSetOrgId = organization.id;
-			void convex
-				.mutation(api.organizations.setActiveOrganization, {
+			void setActiveOrganization({
 					organizationId: organization.id
 				})
 				.catch((error) => {
@@ -40,7 +38,7 @@
 <Sidebar.Provider
 	style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
 >
-	<AppSidebar variant="inset" user={data.user} />
+	<AppSidebar variant="inset" user={data.user} {organizationsQuery} />
 	<Sidebar.Inset>
 		<SiteHeader />
 		{@render children()}

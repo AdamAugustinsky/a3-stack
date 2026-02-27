@@ -11,55 +11,90 @@
 	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import CircleDotIcon from '@lucide/svelte/icons/circle-dot';
 	import type { Task } from '$lib/schemas/todo';
+	import { convexCommand } from 'convex-sveltekit';
+	import { api } from '$convex/api';
+	import { toTodoIds } from '$lib/convex/todos';
 
 	let {
 		selectedRows,
-		onBulkStatusChange,
-		onBulkPriorityChange,
-		onBulkLabelChange,
-		onBulkDelete,
-		onClearSelection,
-		isLoading = false
+		organizationSlug,
+		onComplete
 	}: {
 		selectedRows: Task[];
-		onBulkStatusChange: (status: string) => void;
-		onBulkPriorityChange: (priority: string) => void;
-		onBulkLabelChange: (label: string) => void;
-		onBulkDelete: () => void;
-		onClearSelection: () => void;
-		isLoading?: boolean;
+		organizationSlug: string;
+		onComplete?: () => void;
 	} = $props();
 
 	let selectedCount = $derived(selectedRows.length);
 	let isVisible = $derived(selectedCount > 0);
+	const bulkUpdateTodos = convexCommand(api.todos.bulkUpdateTodos);
+	const bulkDeleteTodos = convexCommand(api.todos.bulkDeleteTodos);
+	const isLoading = $derived(bulkUpdateTodos.pending > 0 || bulkDeleteTodos.pending > 0);
+
+	function getSelectedTodoIds() {
+		return toTodoIds(selectedRows.map((todo) => todo.docId));
+	}
+
+	async function updateTodos(updates: {
+		status?: 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled';
+		priority?: 'low' | 'medium' | 'high';
+		label?: 'bug' | 'feature' | 'documentation';
+	}) {
+		if (!organizationSlug || selectedRows.length === 0 || isLoading) return;
+
+		try {
+			await bulkUpdateTodos({
+				organizationSlug,
+				todoIds: getSelectedTodoIds(),
+				updates
+			});
+			onComplete?.();
+		} catch (error) {
+			console.error('Failed to bulk update todos:', error);
+		}
+	}
 
 	function handleStatusChange(value: string | undefined) {
-		if (value && !isLoading) {
-			onBulkStatusChange(value);
+		if (value) {
+			void updateTodos({
+				status: value as 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled'
+			});
 		}
 	}
 
 	function handlePriorityChange(value: string | undefined) {
-		if (value && !isLoading) {
-			onBulkPriorityChange(value);
+		if (value) {
+			void updateTodos({
+				priority: value as 'low' | 'medium' | 'high'
+			});
 		}
 	}
 
 	function handleLabelChange(value: string | undefined) {
-		if (value && !isLoading) {
-			onBulkLabelChange(value);
+		if (value) {
+			void updateTodos({
+				label: value as 'bug' | 'feature' | 'documentation'
+			});
 		}
 	}
 
-	function handleDelete() {
-		if (!isLoading) {
-			onBulkDelete();
+	async function handleDelete() {
+		if (!organizationSlug || selectedRows.length === 0 || isLoading) return;
+
+		try {
+			await bulkDeleteTodos({
+				organizationSlug,
+				todoIds: getSelectedTodoIds()
+			});
+			onComplete?.();
+		} catch (error) {
+			console.error('Failed to bulk delete todos:', error);
 		}
 	}
 
 	function handleClear() {
 		if (!isLoading) {
-			onClearSelection();
+			onComplete?.();
 		}
 	}
 </script>

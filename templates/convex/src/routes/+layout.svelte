@@ -6,11 +6,12 @@
 	import { setupConvex, setupConvexAuth } from 'convex-sveltekit';
 	import { authClient } from '$lib/auth-client';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import type { LayoutData } from './$types';
 
-	let { children } = $props();
+	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
 	setupConvex(PUBLIC_CONVEX_URL);
-	setupConvexAuth({ authClient });
+	setupConvexAuth({ authClient, initialToken: data.convexToken });
 </script>
 
 <svelte:head>

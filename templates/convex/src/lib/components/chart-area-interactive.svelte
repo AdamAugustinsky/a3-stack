@@ -11,12 +11,16 @@
 	import { curveNatural } from 'd3-shape';
 	import { api } from '$convex/api';
 	import { computeRecentActivity } from '$lib/convex/todos';
-	import { convexQuery } from 'convex-sveltekit';
-	import { page } from '$app/state';
+	import type { ConvexQueryResult } from 'convex-sveltekit';
 
 	type RangeKey = '30d' | '14d' | '7d';
 
 	let timeRange = $state<RangeKey>('30d');
+	let {
+		todosQuery
+	}: {
+		todosQuery: ConvexQueryResult<typeof api.todos.listTodos>;
+	} = $props();
 
 	const LABEL: Record<RangeKey, string> = {
 		'30d': 'Last 30 days',
@@ -37,13 +41,7 @@
 		inProgress: { label: 'In Progress', color: 'var(--chart-2)' }
 	} satisfies Chart.ChartConfig;
 
-	const activityQuery = convexQuery(api.todos.listTodos, () =>
-		page.params.organization_slug
-			? {
-					organizationSlug: page.params.organization_slug
-				}
-			: 'skip'
-	);
+	const activityQuery = $derived(todosQuery);
 
 	const recentActivity = $derived(computeRecentActivity(activityQuery.data));
 

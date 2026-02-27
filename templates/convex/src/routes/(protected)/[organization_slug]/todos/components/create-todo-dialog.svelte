@@ -12,7 +12,8 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { page } from '$app/state';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-sveltekit';
+	import { convexForm } from 'convex-sveltekit';
+	import * as v from 'valibot';
 
 	let {
 		open = $bindable()
@@ -20,7 +21,6 @@
 		open: boolean;
 	} = $props();
 
-	const convex = useConvexClient();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
 
 	let text = $state('');
@@ -29,15 +29,48 @@
 	let priority = $state<'low' | 'medium' | 'high'>('medium');
 
 	let createTodoError = $state<string | undefined>();
-	let fieldErrors = $state<Record<string, string>>({});
-	let isLoading = $state(false);
+
+	const createTodoSchema = v.object({
+		text: v.pipe(
+			v.string('Task description is required'),
+			v.trim(),
+			v.nonEmpty('Task description is required')
+		)
+	});
+
+	const createTodoForm = convexForm(createTodoSchema, api.todos.createTodo, (data) => {
+		if (!organizationSlug) {
+			throw new Error('Organization slug is required');
+		}
+
+		return {
+			organizationSlug,
+			text: data.text.trim(),
+			completed: false,
+			priority,
+			status,
+			label
+		};
+	});
+
+	const createTodoSubmit = createTodoForm.enhance(async ({ submit }) => {
+		createTodoError = undefined;
+		try {
+			await submit();
+			open = false;
+		} catch (error) {
+			createTodoError =
+				error instanceof Error
+					? error.message
+					: 'An unexpected error occurred. Please try again.';
+		}
+	});
 
 	function resetForm() {
 		text = '';
 		label = 'feature';
 		status = 'todo';
 		priority = 'medium';
-		fieldErrors = {};
 		createTodoError = undefined;
 	}
 
@@ -46,49 +79,6 @@
 			resetForm();
 		}
 	});
-
-	function validate(): boolean {
-		fieldErrors = {};
-		if (!text.trim()) {
-			fieldErrors = {
-				text: 'Task description is required'
-			};
-		}
-		return Object.keys(fieldErrors).length === 0;
-	}
-
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		createTodoError = undefined;
-
-		if (!validate()) {
-			createTodoError = 'Please fix the errors below.';
-			return;
-		}
-
-		isLoading = true;
-		try {
-			if (!organizationSlug) {
-				throw new Error('Organization slug is required');
-			}
-			await convex.mutation(api.todos.createTodo, {
-				organizationSlug,
-				text: text.trim(),
-				completed: false,
-				priority,
-				status,
-				label
-			});
-			open = false;
-		} catch (error) {
-			createTodoError =
-				error instanceof Error
-					? error.message
-					: 'An unexpected error occurred. Please try again.';
-		} finally {
-			isLoading = false;
-		}
-	}
 </script>
 
 <Dialog.Root bind:open>
@@ -100,7 +90,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<form onsubmit={handleSubmit} class="flex flex-col">
+		<form {...createTodoSubmit} class="flex flex-col">
 			<div class="space-y-3.5 px-5 py-4">
 				{#if createTodoError}
 					<Alert.Root variant="destructive" class="py-2.5">
@@ -115,7 +105,11 @@
 						<span class="text-destructive">*</span>
 					</Field.Label>
 					<InputGroup.Root
-						class={fieldErrors.text ? 'border-destructive ring-destructive/20' : ''}
+						class={
+							createTodoForm.fields.text.issues()?.length
+								? 'border-destructive ring-destructive/20'
+								: ''
+						}
 					>
 						<InputGroup.Addon>
 							<TextIcon class="size-4 text-muted-foreground" />
@@ -124,11 +118,12 @@
 							id="task-title"
 							placeholder="What needs to be done?"
 							name="text"
+							required
 							bind:value={text}
 						/>
 					</InputGroup.Root>
-					{#if fieldErrors.text}
-						<Field.Error>{fieldErrors.text}</Field.Error>
+					{#if createTodoForm.fields.text.issues()?.[0]}
+						<Field.Error>{createTodoForm.fields.text.issues()?.[0]?.message}</Field.Error>
 					{/if}
 				</Field.Field>
 
@@ -136,7 +131,7 @@
 					<Field.Field class="gap-1.5">
 						<Field.Label for="label" class="text-sm font-medium">Label</Field.Label>
 						<Select.Root type="single" allowDeselect={false} name="label" bind:value={label}>
-							<Select.Trigger class="w-full {fieldErrors.label ? 'border-destructive' : ''}" id="label">
+							<Select.Trigger class="w-full" id="label">
 								<Badge variant="outline" class="font-normal">
 									{labels.find((l) => l.value === label)?.label}
 								</Badge>
@@ -156,7 +151,7 @@
 					<Field.Field class="gap-1.5">
 						<Field.Label for="status" class="text-sm font-medium">Status</Field.Label>
 						<Select.Root type="single" allowDeselect={false} name="status" bind:value={status}>
-							<Select.Trigger class="w-full {fieldErrors.status ? 'border-destructive' : ''}" id="status">
+							<Select.Trigger class="w-full" id="status">
 								{@const currentStatus = statuses.find((s) => s.value === status)}
 								{#if currentStatus}
 									<span class="flex items-center gap-2">
@@ -187,7 +182,7 @@
 							bind:value={priority}
 						>
 							<Select.Trigger
-								class="w-full {fieldErrors.priority ? 'border-destructive' : ''}"
+								class="w-full"
 								id="priority"
 							>
 								{@const currentPriority = priorities.find((p) => p.value === priority)}
@@ -217,8 +212,8 @@
 				<Button type="button" variant="ghost" size="sm" onclick={() => (open = false)}>
 					Cancel
 				</Button>
-				<Button type="submit" size="sm" disabled={isLoading}>
-					{#if isLoading}
+				<Button type="submit" size="sm" disabled={createTodoForm.pending > 0}>
+					{#if createTodoForm.pending > 0}
 						<Spinner class="mr-2 size-4" />
 						Creating...
 					{:else}

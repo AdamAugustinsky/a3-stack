@@ -43,11 +43,14 @@
 	import { page } from '$app/state';
 	import type { FilterStore } from '$lib/components/filter/filter-store.svelte';
 	import type { FilterConfig } from '@/utils/filter';
+	import { api } from '$convex/api';
+	import { convexCommand } from 'convex-sveltekit';
+	import { toTodoId } from '$lib/convex/todos';
 
 	let {
 		data,
+		organizationSlug,
 		onEdit,
-		onDelete,
 		onDuplicate,
 		onSelectionChange,
 		clearSelectionSignal = 0,
@@ -55,14 +58,15 @@
 		todoFilterConfig
 	}: {
 		data: Task[];
+		organizationSlug: string;
 		onEdit?: (todo: Task) => void;
-		onDelete?: (todoId: string) => void;
 		onDuplicate?: (todo: Task) => void;
 		onSelectionChange?: (selected: Task[]) => void;
 		clearSelectionSignal?: number;
 		filterStore: FilterStore;
 		todoFilterConfig: FilterConfig[];
 	} = $props();
+	const deleteTodo = convexCommand(api.todos.deleteTodo);
 
 	let rowSelection = $state<RowSelectionState>({});
 	let columnVisibility = $state<VisibilityState>({
@@ -263,6 +267,22 @@
 			}
 		}
 	});
+
+	async function handleDelete(todoId: string) {
+		if (!organizationSlug) return;
+
+		try {
+			const result = await deleteTodo({
+				organizationSlug,
+				todoId: toTodoId(todoId)
+			});
+			if (!result.deleted) {
+				console.error('Todo not found.');
+			}
+		} catch (error) {
+			console.error('Failed to delete todo:', error);
+		}
+	}
 </script>
 
 {#snippet StatusCell({ value }: { value: string })}
@@ -321,7 +341,7 @@
 			<DropdownMenu.Item onclick={() => onEdit?.(task)}>Edit</DropdownMenu.Item>
 			<DropdownMenu.Item onclick={() => onDuplicate?.(task)}>Make a copy</DropdownMenu.Item>
 			<DropdownMenu.Separator />
-			<DropdownMenu.Item onclick={() => onDelete?.(task.docId)}>
+			<DropdownMenu.Item onclick={() => void handleDelete(task.docId)}>
 				Delete
 				<DropdownMenu.Shortcut>⌘⌫</DropdownMenu.Shortcut>
 			</DropdownMenu.Item>

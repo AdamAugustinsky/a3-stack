@@ -1,11 +1,7 @@
 import type { PageServerLoad } from './$types';
-import { Effect } from 'effect';
-import { runServerEffect, requireValue } from '$lib/server/effect';
+import { convexLoad } from 'convex-sveltekit';
+import { api } from '$convex/api';
 
-export const load: PageServerLoad = ({ locals }) =>
-	runServerEffect(
-		Effect.gen(function* () {
-			const user = yield* requireValue(locals.user, 401, 'Unauthorized');
-			return { user };
-		})
-	);
+export const load: PageServerLoad = async () => ({
+	user: await convexLoad(api.auth.getCurrentUser, {})
+});

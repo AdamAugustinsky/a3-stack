@@ -8,16 +8,15 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { api } from '$convex/api';
 	import { computeDashboardStats } from '$lib/convex/todos';
-	import { convexQuery } from 'convex-sveltekit';
-	import { page } from '$app/state';
+	import type { ConvexQueryResult } from 'convex-sveltekit';
 
-	const dashboardQuery = convexQuery(api.todos.listTodos, () =>
-		page.params.organization_slug
-			? {
-					organizationSlug: page.params.organization_slug
-				}
-			: 'skip'
-	);
+	let {
+		todosQuery
+	}: {
+		todosQuery: ConvexQueryResult<typeof api.todos.listTodos>;
+	} = $props();
+
+	const dashboardQuery = $derived(todosQuery);
 	const stats = $derived(computeDashboardStats(dashboardQuery.data));
 </script>
 

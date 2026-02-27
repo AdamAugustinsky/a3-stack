@@ -5,6 +5,9 @@
 	import SectionCards from '$lib/components/section-cards.svelte';
 	import ChartAreaInteractive from '$lib/components/chart-area-interactive.svelte';
 	import DashboardTodoTable from '$lib/components/dashboard-todo-table.svelte';
+	import type { PageData } from './$types';
+
+	const { data }: { data: PageData } = $props();
 </script>
 
 <div class="@container/main hidden h-full flex-1 flex-col gap-8 p-8 md:flex">
@@ -19,7 +22,7 @@
 		</Button>
 	</div>
 
-	<SectionCards />
-	<ChartAreaInteractive />
-	<DashboardTodoTable />
+	<SectionCards todosQuery={data.todos} />
+	<ChartAreaInteractive todosQuery={data.todos} />
+	<DashboardTodoTable todosQuery={data.todos} />
 </div>
