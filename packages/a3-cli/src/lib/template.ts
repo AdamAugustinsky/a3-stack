@@ -26,6 +26,22 @@ const GITHUB_REPO = 'AdamAugustinsky/a3-stack';
 export async function listTemplates(): Promise<Template[]> {
   return [
     {
+      name: 'convex',
+      displayName: 'A3 Stack + Convex',
+      description: 'SvelteKit 5 + Better Auth + Convex',
+      features: [
+        'Real-time backend with Convex',
+        'Better Auth authentication',
+        'Organization/multi-tenant support',
+        'shadcn-svelte components',
+        'TailwindCSS v4',
+        'Remote functions (experimental)',
+      ],
+      icon: 'database',
+      version: '1.0.0',
+      postInstall: 'bun run scripts/setup-project.ts',
+    },
+    {
       name: 'kysely',
       displayName: 'A3 Stack + Kysely',
       description: 'SvelteKit 5 + Better Auth + Kysely with PostgreSQL',
@@ -86,12 +102,13 @@ export async function processTemplate(
     // template.json might not exist, that's fine
   }
 
-  // Remove .claude directory if it exists (AI assistant specific configs)
+  // Remove AI assistant specific config directories if they exist
   try {
     const { rm } = await import('fs/promises');
     await rm(join(dir, '.claude'), { recursive: true, force: true });
+    await rm(join(dir, '.agents'), { recursive: true, force: true });
   } catch {
-    // .claude might not exist, that's fine
+    // AI config directories might not exist, that's fine
   }
 
   // Remove CLAUDE.md, AGENTS.md if they exist

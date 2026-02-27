@@ -26,7 +26,7 @@ export const templatesCommand = defineCommand({
       console.log('');
     }
 
-    consola.info(`Create a project with: ${pc.cyan('a3 create my-app --template kysely')}`);
+    consola.info(`Create a project with: ${pc.cyan('a3 create my-app --template convex')}`);
     console.log('');
   },
 });

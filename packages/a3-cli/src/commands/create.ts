@@ -2,11 +2,11 @@ import { defineCommand } from 'citty';
 import consola from 'consola';
 import prompts from 'prompts';
 import pc from 'picocolors';
-import { downloadTemplate, listTemplates, processTemplate } from '../lib/template';
+import { downloadTemplate, getTemplateInfo, listTemplates, processTemplate } from '../lib/template';
 import { initGit, isGitInstalled } from '../lib/git';
 import { installDependencies, runPostInstall } from '../lib/setup';
 import { resolve } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync, statSync } from 'fs';
 
 export const createCommand = defineCommand({
   meta: {
@@ -22,7 +22,12 @@ export const createCommand = defineCommand({
     template: {
       type: 'string',
       alias: 't',
-      description: 'Template to use (e.g., kysely)',
+      description: 'Template to use (e.g., convex)',
+    },
+    path: {
+      type: 'string',
+      alias: 'p',
+      description: 'Directory where the project folder should be created',
     },
     git: {
       type: 'boolean',
@@ -49,15 +54,8 @@ export const createCommand = defineCommand({
 
     // Get available templates
     const templates = await listTemplates();
-
-    // Check if target directory already exists (if name provided)
-    if (args.name) {
-      const targetDir = resolve(process.cwd(), args.name);
-      if (existsSync(targetDir)) {
-        consola.error(`Directory ${pc.cyan(args.name)} already exists`);
-        return;
-      }
-    }
+    const invocationCwd = process.env.INIT_CWD ? resolve(process.env.INIT_CWD) : process.cwd();
+    const resolveFromInvocation = (inputPath: string) => resolve(invocationCwd, inputPath);
 
     // Interactive prompts
     const response = await prompts(
@@ -72,9 +70,19 @@ export const createCommand = defineCommand({
             if (!/^[a-z0-9-_]+$/i.test(value)) {
               return 'Project name can only contain letters, numbers, dashes, and underscores';
             }
-            const targetDir = resolve(process.cwd(), value);
-            if (existsSync(targetDir)) {
-              return `Directory ${value} already exists`;
+            return true;
+          },
+        },
+        {
+          type: args.path ? null : 'text',
+          name: 'path',
+          message: 'Project location:',
+          initial: invocationCwd,
+          validate: (value: string) => {
+            if (!value) return 'Project location is required';
+            const baseDir = resolveFromInvocation(value);
+            if (existsSync(baseDir) && !statSync(baseDir).isDirectory()) {
+              return `${baseDir} exists and is not a directory`;
             }
             return true;
           },
@@ -112,15 +120,31 @@ export const createCommand = defineCommand({
 
     const projectName = args.name || response.name;
     const template = args.template || response.template;
+    const projectPathInput = args.path || response.path || '.';
     const shouldInitGit = args.git !== false && response.git !== false;
     const shouldInstall = args.install !== false && response.install !== false;
+    const templateInfo = await getTemplateInfo(template || '');
 
-    if (!projectName || !template) {
+    if (!projectName || !template || !projectPathInput) {
       consola.error('Missing required options');
       return;
     }
 
-    const targetDir = resolve(process.cwd(), projectName);
+    const baseDir = resolveFromInvocation(projectPathInput);
+    if (existsSync(baseDir) && !statSync(baseDir).isDirectory()) {
+      consola.error(`${pc.cyan(baseDir)} exists and is not a directory`);
+      return;
+    }
+
+    if (!existsSync(baseDir)) {
+      mkdirSync(baseDir, { recursive: true });
+    }
+
+    const targetDir = resolve(baseDir, projectName);
+    if (existsSync(targetDir)) {
+      consola.error(`Directory ${pc.cyan(targetDir)} already exists`);
+      return;
+    }
 
     console.log('');
     consola.start(`Creating ${pc.cyan(projectName)} with ${pc.green(template)} template...`);
@@ -131,6 +155,17 @@ export const createCommand = defineCommand({
       consola.success('Downloaded template');
     } catch (error) {
       consola.error(`Failed to download template: ${error}`);
+      return;
+    }
+
+    const packageJsonPath = resolve(targetDir, 'package.json');
+    if (!existsSync(packageJsonPath)) {
+      consola.error(
+        `Downloaded template is invalid (missing package.json at ${pc.cyan(packageJsonPath)}).`
+      );
+      consola.info(
+        'This usually means the selected template path is empty or not available in the remote repository.'
+      );
       return;
     }
 
@@ -163,6 +198,7 @@ export const createCommand = defineCommand({
       try {
         await installDependencies(targetDir);
         consola.success('Installed dependencies');
+        await runPostInstall(targetDir, templateInfo?.postInstall);
       } catch (error) {
         consola.warn(`Failed to install dependencies: ${error}`);
         consola.info('You can install them manually with: bun install');
@@ -182,13 +218,22 @@ export const createCommand = defineCommand({
     console.log('');
     consola.info(`${pc.bold('Next steps:')}`);
     console.log('');
-    console.log(`  ${pc.cyan('cd')} ${projectName}`);
+    console.log(`  ${pc.cyan('cd')} ${targetDir}`);
 
     if (!shouldInstall) {
       console.log(`  ${pc.cyan('bun install')}`);
+      if (templateInfo?.postInstall) {
+        console.log(`  ${pc.cyan(templateInfo.postInstall)}  ${pc.dim('# Configure environment')}`);
+      }
+    } else if (template === 'convex') {
+      console.log(
+        `  ${pc.dim('# Setup script ran. Next, initialize Convex in another terminal:')}`
+      );
     }
 
-    console.log(`  ${pc.cyan('bun run scripts/setup-project.ts')}  ${pc.dim('# Configure environment')}`);
+    if (template === 'convex') {
+      console.log(`  ${pc.cyan('bun run convex:dev')}`);
+    }
     console.log(`  ${pc.cyan('bun run dev')}`);
     console.log('');
     consola.info(`Visit ${pc.cyan('http://localhost:5173')} to see your app`);

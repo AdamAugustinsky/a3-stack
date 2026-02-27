@@ -1,0 +1,16 @@
+{
+  "name": "convex",
+  "displayName": "A3 Stack + Convex",
+  "description": "SvelteKit 5 + Better Auth + Convex",
+  "features": [
+    "Real-time backend with Convex",
+    "Better Auth authentication",
+    "Organization/multi-tenant support",
+    "shadcn-svelte components",
+    "TailwindCSS v4",
+    "Remote functions (experimental)"
+  ],
+  "icon": "database",
+  "version": "1.0.0",
+  "postInstall": "bun run scripts/setup-project.ts"
+}

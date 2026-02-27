@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bunx kysely-codegen:*)",
+      "Bash(chmod:*)",
+      "Bash(/Users/adamaugustinsky/Documents/projects/dora-2/refactor-mocks.sh)",
+      "Bash(bun test:*)",
+      "Bash(bun run check:*)",
+      "Skill(sveltekit-remote-functions)",
+      "Bash(bun run lint:*)",
+      "Bash(bunx eslint:*)",
+      "Bash(ls:*)",
+      "Bash(git show:*)",
+      "Skill(frontend-design)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
