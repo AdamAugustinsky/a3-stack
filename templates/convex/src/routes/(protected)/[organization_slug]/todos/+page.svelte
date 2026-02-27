@@ -21,8 +21,12 @@
 		}
 		const filters = page.url.searchParams.get('filters');
 		return filters ? { organizationSlug, filters } : { organizationSlug };
+	}, {
+		keepPreviousData: true
 	});
 	const todos = $derived(toTasks(todosQuery.data));
+	const showInitialSkeleton = $derived(todosQuery.isLoading && todosQuery.current === undefined);
+	const isRefreshingFilters = $derived(todosQuery.isStale);
 
 	const hasActiveFilters = $derived(filterStore.toArray().length > 0);
 </script>
@@ -59,7 +63,7 @@
 {/snippet}
 
 {#snippet TodoList()}
-	{#if todosQuery.isLoading}
+	{#if showInitialSkeleton}
 		{@render TodoTableSkeleton()}
 	{:else if todosQuery.error}
 		<div class="rounded-xl border bg-background py-16 text-center shadow-sm">
@@ -75,12 +79,13 @@
 			</div>
 		</div>
 	{:else if todos.length > 0 || hasActiveFilters}
-		<TodoDataTable
-			data={todos}
-			{organizationSlug}
-			{filterStore}
-			{todoFilterConfig}
-		/>
+			<TodoDataTable
+				data={todos}
+				{organizationSlug}
+				{filterStore}
+				{todoFilterConfig}
+				isRefreshing={isRefreshingFilters}
+			/>
 	{:else}
 		<div class="rounded-xl border bg-background py-16 text-center shadow-sm">
 			<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">

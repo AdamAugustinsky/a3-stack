@@ -17,11 +17,13 @@
 	let {
 		table,
 		filterStore,
-		todoFilterConfig
+		todoFilterConfig,
+		isRefreshing = false
 	}: {
 		table: Table<TData>;
 		filterStore: FilterStore;
 		todoFilterConfig: FilterConfig[];
+		isRefreshing?: boolean;
 	} = $props();
 
 	const isFiltered = $derived(
@@ -135,10 +137,18 @@
 			>
 				<SettingsIcon class="mr-1 h-3 w-3" />
 				Advanced
-			</Button>
+				</Button>
+			</div>
+			<div class="flex items-center gap-2">
+				{#if isRefreshing}
+					<div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+						<span class="h-2 w-2 animate-pulse rounded-full bg-primary/80"></span>
+						Updating results...
+					</div>
+				{/if}
+				<TodoDataTableViewOptions {table} />
+			</div>
 		</div>
-		<TodoDataTableViewOptions {table} />
-	</div>
 
 	{#if showAdvancedFilters}
 		<!-- Advanced Filters UI -->

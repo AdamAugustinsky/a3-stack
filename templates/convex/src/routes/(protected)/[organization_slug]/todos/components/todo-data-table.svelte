@@ -54,12 +54,14 @@
 		data,
 		organizationSlug,
 		filterStore,
-		todoFilterConfig
+		todoFilterConfig,
+		isRefreshing = false
 	}: {
 		data: Task[];
 		organizationSlug: string;
 		filterStore: FilterStore;
 		todoFilterConfig: FilterConfig[];
+		isRefreshing?: boolean;
 	} = $props();
 	const deleteTodo = convexCommand(api.todos.deleteTodo);
 
@@ -486,7 +488,7 @@
 {/snippet}
 
 <div class="space-y-4">
-	<TodoDataTableToolbar {table} {filterStore} {todoFilterConfig} />
+	<TodoDataTableToolbar {table} {filterStore} {todoFilterConfig} {isRefreshing} />
 	<div class="rounded-md border">
 		<Table.Root>
 			<Table.Header>
