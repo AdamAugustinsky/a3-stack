@@ -13,22 +13,70 @@
 	import { page } from '$app/state';
 	import { api } from '$convex/api';
 	import { convexForm } from 'convex-sveltekit';
+	import type { Task } from '$lib/schemas/todo';
+	import type { Snippet } from 'svelte';
 	import * as v from 'valibot';
 
+	type TriggerSnippet = Snippet<[{ props: Record<string, unknown> }]>;
+	type TodoLabel = 'bug' | 'feature' | 'documentation';
+	type TodoStatus = 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled';
+	type TodoPriority = 'low' | 'medium' | 'high';
+
 	let {
-		open = $bindable()
+		open = $bindable(false),
+		initialTodo,
+		trigger,
+		enableShortcut = false
 	}: {
-		open: boolean;
+		open?: boolean;
+		initialTodo?: Task;
+		trigger?: TriggerSnippet;
+		enableShortcut?: boolean;
 	} = $props();
 
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
 
 	let text = $state('');
-	let label = $state<'bug' | 'feature' | 'documentation'>('feature');
-	let status = $state<'backlog' | 'todo' | 'in progress' | 'done' | 'canceled'>('todo');
-	let priority = $state<'low' | 'medium' | 'high'>('medium');
+	let label = $state<TodoLabel>('feature');
+	let status = $state<TodoStatus>('todo');
+	let priority = $state<TodoPriority>('medium');
+	let wasOpen = $state(false);
 
 	let createTodoError = $state<string | undefined>();
+
+	function getDefaultValues() {
+		return {
+			text: '',
+			label: 'feature' as TodoLabel,
+			status: 'todo' as TodoStatus,
+			priority: 'medium' as TodoPriority
+		};
+	}
+
+	function getInitialValues() {
+		if (!initialTodo) {
+			return getDefaultValues();
+		}
+
+		return {
+			text: `${initialTodo.text} (copy)`,
+			label: initialTodo.label,
+			status: initialTodo.status,
+			priority: initialTodo.priority
+		};
+	}
+
+	function applyFormValues(values: {
+		text: string;
+		label: TodoLabel;
+		status: TodoStatus;
+		priority: TodoPriority;
+	}) {
+		text = values.text;
+		label = values.label;
+		status = values.status;
+		priority = values.priority;
+	}
 
 	const createTodoSchema = v.object({
 		text: v.pipe(
@@ -67,22 +115,58 @@
 	});
 
 	$effect(() => {
-		if (!open) {
-			text = '';
-			label = 'feature';
-			status = 'todo';
-			priority = 'medium';
+		if (open && !wasOpen) {
+			applyFormValues(getInitialValues());
 			createTodoError = undefined;
 		}
+
+		if (!open && wasOpen) {
+			applyFormValues(getDefaultValues());
+			createTodoError = undefined;
+		}
+
+		wasOpen = open;
 	});
+
+	function handleShortcut(event: KeyboardEvent) {
+		if (!enableShortcut) return;
+		if (event.key !== 'c' || event.metaKey || event.ctrlKey || event.altKey) return;
+
+		const target = event.target as HTMLElement | null;
+		if (!target) return;
+
+		if (
+			target.tagName === 'INPUT' ||
+			target.tagName === 'TEXTAREA' ||
+			target.tagName === 'SELECT' ||
+			target.isContentEditable
+		) {
+			return;
+		}
+
+		event.preventDefault();
+		open = true;
+	}
 </script>
 
+<svelte:document onkeydown={handleShortcut} />
+
 <Dialog.Root bind:open>
+	{#if trigger}
+		<Dialog.Trigger>
+			{#snippet child({ props })}
+				{@render trigger({ props })}
+			{/snippet}
+		</Dialog.Trigger>
+	{/if}
+
 	<Dialog.Content class="gap-0 p-0 sm:max-w-md">
 		<Dialog.Header class="border-b px-5 py-3.5">
-			<Dialog.Title class="text-base font-semibold">New Task</Dialog.Title>
+			<Dialog.Title class="text-base font-semibold">
+				{initialTodo ? 'Duplicate Task' : 'New Task'}
+			</Dialog.Title>
 			<Dialog.Description class="text-sm text-muted-foreground">
-				Add a task to your list
+				{initialTodo ? 'Create a copy of this task' : 'Add a task to your list'}
 			</Dialog.Description>
 		</Dialog.Header>
 

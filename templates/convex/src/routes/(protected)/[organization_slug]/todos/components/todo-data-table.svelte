@@ -41,6 +41,9 @@
 	import { cn } from '$lib/utils.js';
 	import type { Task } from '@/schemas/todo';
 	import { page } from '$app/state';
+	import CreateTodoDialog from './create-todo-dialog.svelte';
+	import EditTodoDialog from './edit-todo-dialog.svelte';
+	import BulkOperationsDock from './bulk-operations-dock.svelte';
 	import type { FilterStore } from '$lib/components/filter/filter-store.svelte';
 	import type { FilterConfig } from '@/utils/filter';
 	import { api } from '$convex/api';
@@ -50,19 +53,11 @@
 	let {
 		data,
 		organizationSlug,
-		onEdit,
-		onDuplicate,
-		onSelectionChange,
-		clearSelectionSignal = 0,
 		filterStore,
 		todoFilterConfig
 	}: {
 		data: Task[];
 		organizationSlug: string;
-		onEdit?: (todo: Task) => void;
-		onDuplicate?: (todo: Task) => void;
-		onSelectionChange?: (selected: Task[]) => void;
-		clearSelectionSignal?: number;
 		filterStore: FilterStore;
 		todoFilterConfig: FilterConfig[];
 	} = $props();
@@ -74,14 +69,9 @@
 	});
 	let sorting = $state<SortingState>([]);
 	let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 10 });
-	let lastSelectionSignature = $state('');
 
 	// No column filters - using FilterStore instead
 	let columnFilters = $state<ColumnFiltersState>([]);
-
-	function selectionSignature(items: Task[]): string {
-		return items.map((item) => item.docId).join('|');
-	}
 
 	function isSameRowSelection(a: RowSelectionState, b: RowSelectionState): boolean {
 		const aKeys = Object.keys(a);
@@ -255,24 +245,7 @@
 		getFacetedUniqueValues: getFacetedUniqueValues()
 	});
 
-	// Track selection changes and call onSelectionChange
-	$effect(() => {
-		if (onSelectionChange) {
-			const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
-			const currentSelectionSignature = selectionSignature(selectedRows);
-			if (currentSelectionSignature !== lastSelectionSignature) {
-				lastSelectionSignature = currentSelectionSignature;
-				onSelectionChange(selectedRows);
-			}
-		}
-	});
-
-	// Clear selection when signal changes
-	$effect(() => {
-		if (clearSelectionSignal > 0 && Object.keys(rowSelection).length > 0) {
-			rowSelection = {};
-		}
-	});
+	const selectedRows = $derived(table.getSelectedRowModel().rows.map((row) => row.original));
 
 	// Handle highlight parameter (scroll to and highlight a specific todo)
 	$effect(() => {
@@ -301,6 +274,12 @@
 			}
 		} catch (error) {
 			console.error('Failed to delete todo:', error);
+		}
+	}
+
+	function clearSelection() {
+		if (Object.keys(rowSelection).length > 0) {
+			rowSelection = {};
 		}
 	}
 </script>
@@ -358,8 +337,16 @@
 			{/snippet}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content class="w-40" align="end">
-			<DropdownMenu.Item onclick={() => onEdit?.(task)}>Edit</DropdownMenu.Item>
-			<DropdownMenu.Item onclick={() => onDuplicate?.(task)}>Make a copy</DropdownMenu.Item>
+			<EditTodoDialog todo={task}>
+				{#snippet trigger({ props }: { props: Record<string, unknown> })}
+					<DropdownMenu.Item {...props}>Edit</DropdownMenu.Item>
+				{/snippet}
+			</EditTodoDialog>
+			<CreateTodoDialog initialTodo={task}>
+				{#snippet trigger({ props }: { props: Record<string, unknown> })}
+					<DropdownMenu.Item {...props}>Make a copy</DropdownMenu.Item>
+				{/snippet}
+			</CreateTodoDialog>
 			<DropdownMenu.Separator />
 			<DropdownMenu.Item onclick={() => void handleDelete(task.docId)}>
 				Delete
@@ -537,3 +524,9 @@
 	</div>
 	{@render Pagination({ table })}
 </div>
+
+<BulkOperationsDock
+	{organizationSlug}
+	{selectedRows}
+	onComplete={clearSelection}
+/>

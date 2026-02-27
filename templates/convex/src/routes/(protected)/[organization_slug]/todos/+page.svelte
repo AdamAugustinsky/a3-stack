@@ -1,26 +1,17 @@
 <script lang="ts">
 	import TodoDataTable from './components/todo-data-table.svelte';
-	import EditTodoDialog from './components/edit-todo-dialog.svelte';
 	import CreateTodoDialog from './components/create-todo-dialog.svelte';
-	import BulkOperationsDock from './components/bulk-operations-dock.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import * as Kbd from '$lib/components/ui/kbd/index.js';
 	import CirclePlusIcon from '@lucide/svelte/icons/circle-plus';
 	import AlertCircleIcon from '@tabler/icons-svelte/icons/alert-circle';
-	import type { Task } from '$lib/schemas/todo';
 	import { FilterStore } from '$lib/components/filter/filter-store.svelte';
 	import { todoFilterConfig } from './filter-config';
 	import { page } from '$app/state';
 	import { toTasks } from '$lib/convex/todos';
 	import { convexQuery } from 'convex-sveltekit';
 	import { api } from '$convex/api';
-
-	let editingTodo = $state<Task>();
-	let showEditDialog = $state(false);
-	let showCreateDialog = $state(false);
-	let selectedTodos = $state<Task[]>([]);
-	let clearSelectionSignal = $state(0);
 
 	const filterStore = new FilterStore();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
@@ -34,49 +25,7 @@
 	const todos = $derived(toTasks(todosQuery.data));
 
 	const hasActiveFilters = $derived(filterStore.toArray().length > 0);
-
-	function handleOpenCreateDialog() {
-		showCreateDialog = true;
-	}
-
-	function handleEditTodo(todo: Task) {
-		editingTodo = { ...todo };
-		showEditDialog = true;
-	}
-
-	function handleDuplicateTodo(todo: Task) {
-		editingTodo = {
-			...todo,
-			text: `${todo.text} (copy)`
-		};
-		showCreateDialog = true;
-	}
-
-	function handleSelectionChange(selected: Task[]) {
-		selectedTodos = selected;
-	}
-
-	function handleClearSelection() {
-		selectedTodos = [];
-		clearSelectionSignal++;
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-			const target = e.target as HTMLElement;
-			if (
-				target.tagName !== 'INPUT' &&
-				target.tagName !== 'TEXTAREA' &&
-				!target.isContentEditable
-			) {
-				e.preventDefault();
-				handleOpenCreateDialog();
-			}
-		}
-	}
 </script>
-
-<svelte:document onkeydown={handleKeydown} />
 
 {#snippet TodoTableSkeleton()}
 	<div class="rounded-xl border bg-background shadow-sm">
@@ -128,11 +77,7 @@
 	{:else if todos.length > 0 || hasActiveFilters}
 		<TodoDataTable
 			data={todos}
-			onEdit={handleEditTodo}
-			onDuplicate={handleDuplicateTodo}
-			onSelectionChange={handleSelectionChange}
 			{organizationSlug}
-			{clearSelectionSignal}
 			{filterStore}
 			{todoFilterConfig}
 		/>
@@ -144,10 +89,14 @@
 			<h3 class="mt-4 text-sm font-semibold">No tasks yet</h3>
 			<p class="mt-1 text-sm text-muted-foreground">Get started by creating your first task.</p>
 			<div class="mt-6">
-				<Button onclick={handleOpenCreateDialog}>
-					<CirclePlusIcon class="mr-2 h-4 w-4" />
-					Add Task
-				</Button>
+				<CreateTodoDialog>
+					{#snippet trigger({ props }: { props: Record<string, unknown> })}
+						<Button {...props} type="button">
+							<CirclePlusIcon class="mr-2 h-4 w-4" />
+							Add Task
+						</Button>
+					{/snippet}
+				</CreateTodoDialog>
 			</div>
 		</div>
 	{/if}
@@ -159,21 +108,15 @@
 			<h2 class="text-2xl font-semibold tracking-tight">Todos!</h2>
 			<p class="text-muted-foreground">Here&apos;s a list of your tasks for this month.</p>
 		</div>
-		<Button onclick={handleOpenCreateDialog} variant="default" class="group">
-			<CirclePlusIcon class="mr-2 h-4 w-4" />
-			Add Task
-			<Kbd.Root class="ml-1.5 border-primary-foreground/30 bg-primary-foreground/20 text-primary-foreground">C</Kbd.Root>
-		</Button>
+		<CreateTodoDialog enableShortcut={true}>
+			{#snippet trigger({ props }: { props: Record<string, unknown> })}
+				<Button {...props} type="button" variant="default" class="group">
+					<CirclePlusIcon class="mr-2 h-4 w-4" />
+					Add Task
+					<Kbd.Root class="ml-1.5 border-primary-foreground/30 bg-primary-foreground/20 text-primary-foreground">C</Kbd.Root>
+				</Button>
+			{/snippet}
+		</CreateTodoDialog>
 	</div>
 	{@render TodoList()}
 </div>
-
-<BulkOperationsDock
-	selectedRows={selectedTodos}
-	{organizationSlug}
-	onComplete={handleClearSelection}
-/>
-
-<CreateTodoDialog bind:open={showCreateDialog} />
-
-<EditTodoDialog bind:open={showEditDialog} bind:todo={editingTodo} />

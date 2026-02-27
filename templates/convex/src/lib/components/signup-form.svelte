@@ -9,10 +9,10 @@
 	import { goto } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-sveltekit';
+	import { getConvexClient } from 'convex-sveltekit';
 
 	let { class: className, ...restProps }: HTMLAttributes<HTMLDivElement> = $props();
-	const convex = useConvexClient();
+	const convex = getConvexClient();
 
 	let signUpError = $state<string | undefined>();
 	let isLoading = $state(false);
