@@ -57,11 +57,11 @@
 
 	// If there are no organizations from the server, prompt creation dialog
 	// Only show after the query has finished loading
-	$effect(() => {
-		if (!organizationsQuery.isLoading && !organizationsQuery.error && organizations.length === 0) {
-			goto(resolve('/create-organization'));
-		}
-	});
+	// $effect(() => {
+	// 	if (!organizationsQuery.isLoading && !organizationsQuery.error && organizations.length === 0) {
+	// 		goto(resolve('/create-organization'));
+	// 	}
+	// });
 
 	const data = {
 		navMain: [

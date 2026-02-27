@@ -17,13 +17,11 @@
 	import CalendarIcon from '@tabler/icons-svelte/icons/calendar';
 	import ShieldIcon from '@tabler/icons-svelte/icons/shield';
 	import { invalidateAll } from '$app/navigation';
-	import type { PageData } from './$types';
 	import { api } from '$convex/api';
-	import { convexForm } from 'convex-sveltekit';
+	import { convexForm, convexQuery } from 'convex-sveltekit';
 	import * as v from 'valibot';
 
-	const { data }: { data: PageData } = $props();
-	const userQuery = $derived(data.user);
+	const userQuery = convexQuery(api.auth.getCurrentUser, {});
 	const user = $derived(userQuery.data);
 	const userId = $derived((user?.userId as string | null | undefined) ?? user?._id ?? '');
 

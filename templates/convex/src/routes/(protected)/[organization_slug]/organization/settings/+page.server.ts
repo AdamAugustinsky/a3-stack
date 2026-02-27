@@ -1,9 +1,0 @@
-import type { PageServerLoad } from './$types';
-import { convexLoad } from 'convex-sveltekit';
-import { api } from '$convex/api';
-
-export const load: PageServerLoad = async ({ params }) => ({
-	activeOrganization: await convexLoad(api.organizations.getOrganizationBySlug, {
-		organizationSlug: params.organization_slug
-	})
-});

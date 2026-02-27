@@ -3,15 +3,24 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import { PUBLIC_CONVEX_URL } from '$env/static/public';
-	import { setupConvex, setupConvexAuth } from 'convex-sveltekit';
+	import { getConvexClient, setupConvex } from 'convex-sveltekit';
 	import { authClient } from '$lib/auth-client';
+	import { setupConvexAuthBridge } from '$lib/convex/auth.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
 	setupConvex(PUBLIC_CONVEX_URL);
-	setupConvexAuth({ authClient, initialToken: data.convexToken });
+	const stopSessionSync = setupConvexAuthBridge({
+		client: getConvexClient(),
+		authClient,
+		getInitialToken: () => data.convexToken ?? null
+	});
+
+	$effect(() => {
+		return stopSessionSync;
+	});
 </script>
 
 <svelte:head>

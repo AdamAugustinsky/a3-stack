@@ -15,6 +15,25 @@ async function getAuth(ctx: GenericCtx<DataModel>) {
 	return await authComponent.getAuth(createAuth, ctx);
 }
 
+async function getAuthUser(ctx: GenericCtx<DataModel>) {
+	try {
+		return await authComponent.getAuthUser(ctx);
+	} catch (error) {
+		if (error instanceof Error && error.message === 'Unauthenticated') {
+			return null;
+		}
+		throw new Error('Failed to resolve authenticated user', { cause: error });
+	}
+}
+
+async function getAuthContext(ctx: GenericCtx<DataModel>) {
+	const user = await getAuthUser(ctx);
+	if (!user) {
+		return null;
+	}
+	return await getAuth(ctx);
+}
+
 function normalizeBetterAuthValue<T>(value: T): T {
 	if (value instanceof Date) {
 		return value.toISOString() as T;
@@ -41,7 +60,12 @@ function normalizeBetterAuthValue<T>(value: T): T {
 export const listOrganizations = query({
 	args: {},
 	handler: async (ctx) => {
-		const { auth, headers } = await getAuth(ctx);
+		const authContext = await getAuthContext(ctx);
+		if (!authContext) {
+			return [];
+		}
+
+		const { auth, headers } = authContext;
 		const result = await auth.api.listOrganizations({ headers });
 		return normalizeBetterAuthValue(Array.isArray(result) ? result : []);
 	}
@@ -54,7 +78,12 @@ export const getFullOrganization = query({
 		membersLimit: v.optional(v.number())
 	},
 	handler: async (ctx, args) => {
-		const { auth, headers } = await getAuth(ctx);
+		const authContext = await getAuthContext(ctx);
+		if (!authContext) {
+			return null;
+		}
+
+		const { auth, headers } = authContext;
 		const result = await auth.api.getFullOrganization({
 			headers,
 			query: {
@@ -72,7 +101,12 @@ export const getOrganizationBySlug = query({
 		organizationSlug: v.string()
 	},
 	handler: async (ctx, { organizationSlug }) => {
-		const { auth, headers } = await getAuth(ctx);
+		const authContext = await getAuthContext(ctx);
+		if (!authContext) {
+			return null;
+		}
+
+		const { auth, headers } = authContext;
 		const result = await auth.api.getFullOrganization({
 			headers,
 			query: { organizationSlug }
@@ -103,7 +137,12 @@ export const listMembers = query({
 		filterValue: v.optional(v.string())
 	},
 	handler: async (ctx, args) => {
-		const { auth, headers } = await getAuth(ctx);
+		const authContext = await getAuthContext(ctx);
+		if (!authContext) {
+			return [];
+		}
+
+		const { auth, headers } = authContext;
 		const result = await auth.api.listMembers({
 			headers,
 			query: args
@@ -117,7 +156,12 @@ export const listInvitations = query({
 		organizationId: v.optional(v.string())
 	},
 	handler: async (ctx, args) => {
-		const { auth, headers } = await getAuth(ctx);
+		const authContext = await getAuthContext(ctx);
+		if (!authContext) {
+			return [];
+		}
+
+		const { auth, headers } = authContext;
 		const result = await auth.api.listInvitations({
 			headers,
 			query: {

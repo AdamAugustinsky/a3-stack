@@ -35,16 +35,20 @@
 	import UserPlusIcon from '@tabler/icons-svelte/icons/user-plus';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import { api } from '$convex/api';
-	import { convexCommand, convexForm } from 'convex-sveltekit';
+	import { convexCommand, convexForm, convexQuery } from 'convex-sveltekit';
 	import * as v from 'valibot';
 
 	type OrganizationRole = 'member' | 'admin' | 'owner';
 
 	let { data }: { data: PageData } = $props();
 	const user = $derived(data.user);
-	const activeOrganizationQuery = $derived(data.activeOrganization);
+	const activeOrganizationQuery = convexQuery(api.organizations.getOrganizationBySlug, () => {
+		const organizationSlug = page.params.organization_slug;
+		return organizationSlug ? { organizationSlug } : 'skip';
+	});
 	const activeOrganization = $derived(activeOrganizationQuery.data ?? null);
 
 	let isEditing = $state(false);

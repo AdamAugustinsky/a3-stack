@@ -12,10 +12,9 @@
 	import { FilterStore } from '$lib/components/filter/filter-store.svelte';
 	import { todoFilterConfig } from './filter-config';
 	import { page } from '$app/state';
-	import { applyTaskFilters, toTasks } from '$lib/convex/todos';
-	import type { PageData } from './$types';
-
-	const { data }: { data: PageData } = $props();
+	import { toTasks } from '$lib/convex/todos';
+	import { convexQuery } from 'convex-sveltekit';
+	import { api } from '$convex/api';
 
 	let editingTodo = $state<Task>();
 	let showEditDialog = $state(false);
@@ -25,14 +24,16 @@
 
 	const filterStore = new FilterStore();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
-	const todosQuery = $derived(data.todos);
-	const allTodos = $derived(toTasks(todosQuery.data));
-	const hasActiveFilters = $derived(filterStore.toArray().length > 0);
-
-	const todos = $derived.by(() => {
-		const filters = filterStore.toArray();
-		return filters.length === 0 ? allTodos : applyTaskFilters(allTodos, filters);
+	const todosQuery = convexQuery(api.todos.listTodos, () => {
+		if (!organizationSlug) {
+			return 'skip';
+		}
+		const filters = page.url.searchParams.get('filters');
+		return filters ? { organizationSlug, filters } : { organizationSlug };
 	});
+	const todos = $derived(toTasks(todosQuery.data));
+
+	const hasActiveFilters = $derived(filterStore.toArray().length > 0);
 
 	function handleOpenCreateDialog() {
 		showCreateDialog = true;
@@ -52,13 +53,6 @@
 	}
 
 	function handleSelectionChange(selected: Task[]) {
-		if (
-			selectedTodos.length === selected.length &&
-			selectedTodos.every((todo, index) => todo.docId === selected[index]?.docId)
-		) {
-			return;
-		}
-
 		selectedTodos = selected;
 	}
 

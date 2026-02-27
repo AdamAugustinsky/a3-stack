@@ -66,17 +66,13 @@
 		}
 	});
 
-	function resetForm() {
-		text = '';
-		label = 'feature';
-		status = 'todo';
-		priority = 'medium';
-		createTodoError = undefined;
-	}
-
 	$effect(() => {
 		if (!open) {
-			resetForm();
+			text = '';
+			label = 'feature';
+			status = 'todo';
+			priority = 'medium';
+			createTodoError = undefined;
 		}
 	});
 </script>

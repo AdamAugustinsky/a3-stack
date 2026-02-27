@@ -7,10 +7,10 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { api } from '$convex/api';
-	import { convexCommand } from 'convex-sveltekit';
+	import { convexCommand, convexQuery } from 'convex-sveltekit';
 
 	const { children, data }: { children: Snippet; data: LayoutData } = $props();
-	const organizationsQuery = $derived(data.organizations);
+	const organizationsQuery = convexQuery(api.organizations.listOrganizations, {});
 	const organizations = $derived(organizationsQuery.data ?? []);
 	const setActiveOrganization = convexCommand(api.organizations.setActiveOrganization);
 
@@ -26,8 +26,8 @@
 		if (organization && organization.id !== lastSetOrgId) {
 			lastSetOrgId = organization.id;
 			void setActiveOrganization({
-					organizationId: organization.id
-				})
+				organizationId: organization.id
+			})
 				.catch((error) => {
 					console.error('Failed to set active organization:', error);
 				});

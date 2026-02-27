@@ -5,9 +5,13 @@
 	import SectionCards from '$lib/components/section-cards.svelte';
 	import ChartAreaInteractive from '$lib/components/chart-area-interactive.svelte';
 	import DashboardTodoTable from '$lib/components/dashboard-todo-table.svelte';
-	import type { PageData } from './$types';
+	import { api } from '$convex/api';
+	import { convexQuery } from 'convex-sveltekit';
 
-	const { data }: { data: PageData } = $props();
+	const todosQuery = convexQuery(api.todos.listTodos, () => {
+		const organizationSlug = page.params.organization_slug;
+		return organizationSlug ? { organizationSlug } : 'skip';
+	});
 </script>
 
 <div class="@container/main hidden h-full flex-1 flex-col gap-8 p-8 md:flex">
@@ -22,7 +26,7 @@
 		</Button>
 	</div>
 
-	<SectionCards todosQuery={data.todos} />
-	<ChartAreaInteractive todosQuery={data.todos} />
-	<DashboardTodoTable todosQuery={data.todos} />
+	<SectionCards {todosQuery} />
+	<ChartAreaInteractive {todosQuery} />
+	<DashboardTodoTable {todosQuery} />
 </div>
