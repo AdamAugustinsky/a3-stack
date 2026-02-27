@@ -5,15 +5,14 @@
 	import TodoDataTableViewOptions from './todo-data-table-view-options.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { priorities, statuses, labels } from './data.js';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import * as Kbd from '$lib/components/ui/kbd/index.js';
 	import type { FilterStore } from '$lib/components/filter/filter-store.svelte';
-	import type { FilterConfig } from '@/utils/filter';
+	import { generateFilterId, type Filter, type FilterConfig } from '@/utils/filter';
 	import FilterBuilder from '$lib/components/filter/filter-builder.svelte';
 	import FilterBreadcrumbs from '$lib/components/filter/filter-breadcrumbs.svelte';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import TodoDataTableFacetedFilterForFilterStore from './todo-data-table-faceted-filter-store.svelte';
-	import { Debounced } from 'runed';
 
 	let {
 		table,
@@ -57,44 +56,61 @@
 	});
 
 	// Helper functions for text filter
+	const isTextContainsFilter = (filter: Filter) =>
+		filter.field === 'text' && filter.operator === 'contains';
+
 	function getTextFilterValue(): string {
-		const textFilter = filterStore.filters.find(
-			(f) => f.field === 'text' && f.operator === 'contains'
-		);
-		return (textFilter?.value as string) || '';
+		const textFilter = filterStore.filters.find(isTextContainsFilter);
+		return typeof textFilter?.value === 'string' ? textFilter.value : '';
 	}
 
 	let textFilterValue = $state(getTextFilterValue());
 
-	let debouncedTextFilterValue = new Debounced(() => textFilterValue, 500);
+	$effect(() => {
+		const nextValue = textFilterValue;
+		untrack(() => {
+			updateTextFilter(nextValue);
+		});
+	});
 
 	$effect(() => {
-		if (
-			!debouncedTextFilterValue.pending &&
-			debouncedTextFilterValue.current !== getTextFilterValue()
-		) {
-			updateTextFilter(debouncedTextFilterValue.current);
+		const currentTextFilterValue = getTextFilterValue();
+		if (!inputFocused && textFilterValue !== currentTextFilterValue) {
+			textFilterValue = currentTextFilterValue;
 		}
 	});
 
 	function updateTextFilter(value: string) {
-		console.log('updateTextFilter called with:', value);
-		// Remove existing text filter
-		filterStore.filters = filterStore.filters.filter(
-			(f) => !(f.field === 'text' && f.operator === 'contains')
-		);
+		const normalizedValue = value.trim();
+		const existingTextFilters = filterStore.filters.filter(isTextContainsFilter);
+		const remainingFilters = filterStore.filters.filter((filter) => !isTextContainsFilter(filter));
 
-		// Add new text filter if value is not empty
-		if (value.trim()) {
-			console.log('Adding text filter for:', value.trim());
-			filterStore.addFilter({
-				field: 'text',
-				operator: 'contains',
-				value: value.trim(),
-				type: 'text'
-			});
+		if (!normalizedValue) {
+			if (existingTextFilters.length > 0) {
+				filterStore.setFilters(remainingFilters);
+			}
+			return;
 		}
-		console.log('Current filters after text update:', filterStore.filters);
+
+		if (
+			existingTextFilters.length === 1 &&
+			typeof existingTextFilters[0].value === 'string' &&
+			existingTextFilters[0].value === normalizedValue
+		) {
+			return;
+		}
+
+		const nextTextFilter: Filter = existingTextFilters[0]
+			? { ...existingTextFilters[0], value: normalizedValue, type: 'text' }
+			: {
+					id: generateFilterId(),
+					field: 'text',
+					operator: 'contains',
+					value: normalizedValue,
+					type: 'text'
+				};
+
+		filterStore.setFilters([...remainingFilters, nextTextFilter]);
 	}
 </script>
 
@@ -193,6 +209,7 @@
 				<Button
 					variant="ghost"
 					onclick={() => {
+						textFilterValue = '';
 						filterStore.clearFilters();
 					}}
 					class="h-8 px-2 lg:px-3"

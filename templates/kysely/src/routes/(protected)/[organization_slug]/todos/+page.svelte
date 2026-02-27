@@ -29,6 +29,7 @@
 		organizationSlug: page.params.organization_slug!,
 		filters: filterStore.toArray()
 	});
+	const hasActiveFilters = $derived(filterStore.toArray().length > 0);
 
 	function handleOpenCreateDialog() {
 		showCreateDialog = true;
@@ -61,6 +62,13 @@
 	}
 
 	function handleSelectionChange(selected: Task[]) {
+		if (
+			selectedTodos.length === selected.length &&
+			selectedTodos.every((todo, index) => todo.id === selected[index]?.id)
+		) {
+			return;
+		}
+
 		selectedTodos = selected;
 	}
 
@@ -202,7 +210,7 @@
 	<svelte:boundary onerror={(e) => console.error('TodoList fetch failed:', e)}>
 		{@const todos = await getTodos(queryParams)}
 
-		{#if todos.length > 0}
+		{#if todos.length > 0 || hasActiveFilters}
 			<TodoDataTable
 				data={todos}
 				onEdit={handleEditTodo}

@@ -26,11 +26,12 @@
 	const filterStore = new FilterStore();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
 	const todosQuery = $derived(data.todos);
+	const allTodos = $derived(toTasks(todosQuery.data));
+	const hasActiveFilters = $derived(filterStore.toArray().length > 0);
 
 	const todos = $derived.by(() => {
-		const parsed = toTasks(todosQuery.data);
 		const filters = filterStore.toArray();
-		return filters.length === 0 ? parsed : applyTaskFilters(parsed, filters);
+		return filters.length === 0 ? allTodos : applyTaskFilters(allTodos, filters);
 	});
 
 	function handleOpenCreateDialog() {
@@ -51,6 +52,13 @@
 	}
 
 	function handleSelectionChange(selected: Task[]) {
+		if (
+			selectedTodos.length === selected.length &&
+			selectedTodos.every((todo, index) => todo.docId === selected[index]?.docId)
+		) {
+			return;
+		}
+
 		selectedTodos = selected;
 	}
 
@@ -123,7 +131,7 @@
 				</Button>
 			</div>
 		</div>
-	{:else if todos.length > 0}
+	{:else if todos.length > 0 || hasActiveFilters}
 		<TodoDataTable
 			data={todos}
 			onEdit={handleEditTodo}

@@ -58,25 +58,31 @@
 		}
 
 		// Remove existing filters for this field with 'is' or 'is_any_of' operators
-		filterStore.filters = filterStore.filters.filter(
+		const remainingFilters = filterStore.filters.filter(
 			(f) => !(f.field === field && (f.operator === 'is' || f.operator === 'is_any_of'))
 		);
 
 		// Add new filter if we have values
 		if (currentValues.size > 0) {
 			const valuesArray = Array.from(currentValues);
+			filterStore.setFilters(remainingFilters);
 			filterStore.addFilter({
 				field,
 				operator: valuesArray.length === 1 ? 'is' : 'is_any_of',
 				value: valuesArray.length === 1 ? valuesArray[0] : valuesArray,
 				type: valuesArray.length === 1 ? 'select' : 'multiselect'
 			});
+			return;
 		}
+
+		filterStore.setFilters(remainingFilters);
 	}
 
 	function clearFilters() {
-		filterStore.filters = filterStore.filters.filter(
+		filterStore.setFilters(
+			filterStore.filters.filter(
 			(f) => !(f.field === field && (f.operator === 'is' || f.operator === 'is_any_of'))
+			)
 		);
 	}
 </script>

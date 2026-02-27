@@ -70,9 +70,24 @@
 	});
 	let sorting = $state<SortingState>([]);
 	let pagination = $state<PaginationState>({ pageIndex: 0, pageSize: 10 });
+	let lastSelectionSignature = $state('');
 
 	// No column filters - using FilterStore instead
 	let columnFilters = $state<ColumnFiltersState>([]);
+
+	function selectionSignature(items: Task[]): string {
+		return items.map((item) => String(item.id)).join('|');
+	}
+
+	function isSameRowSelection(a: RowSelectionState, b: RowSelectionState): boolean {
+		const aKeys = Object.keys(a);
+		const bKeys = Object.keys(b);
+		if (aKeys.length !== bKeys.length) return false;
+		for (const key of aKeys) {
+			if (a[key] !== b[key]) return false;
+		}
+		return true;
+	}
 
 	const columns: ColumnDef<Task>[] = [
 		{
@@ -197,10 +212,9 @@
 		columns,
 		enableRowSelection: true,
 		onRowSelectionChange: (updater) => {
-			if (typeof updater === 'function') {
-				rowSelection = updater(rowSelection);
-			} else {
-				rowSelection = updater;
+			const nextSelection = typeof updater === 'function' ? updater(rowSelection) : updater;
+			if (!isSameRowSelection(rowSelection, nextSelection)) {
+				rowSelection = nextSelection;
 			}
 		},
 		onSortingChange: (updater) => {
@@ -221,10 +235,12 @@
 			}
 		},
 		onPaginationChange: (updater) => {
-			if (typeof updater === 'function') {
-				pagination = updater(pagination);
-			} else {
-				pagination = updater;
+			const nextPagination = typeof updater === 'function' ? updater(pagination) : updater;
+			if (
+				nextPagination.pageIndex !== pagination.pageIndex ||
+				nextPagination.pageSize !== pagination.pageSize
+			) {
+				pagination = nextPagination;
 			}
 		},
 		getCoreRowModel: getCoreRowModel(),
@@ -239,13 +255,17 @@
 	$effect(() => {
 		if (onSelectionChange) {
 			const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
-			onSelectionChange(selectedRows);
+			const currentSelectionSignature = selectionSignature(selectedRows);
+			if (currentSelectionSignature !== lastSelectionSignature) {
+				lastSelectionSignature = currentSelectionSignature;
+				onSelectionChange(selectedRows);
+			}
 		}
 	});
 
 	// Clear selection when signal changes
 	$effect(() => {
-		if (clearSelectionSignal > 0) {
+		if (clearSelectionSignal > 0 && Object.keys(rowSelection).length > 0) {
 			rowSelection = {};
 		}
 	});

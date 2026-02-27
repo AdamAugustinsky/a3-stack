@@ -26,14 +26,10 @@ function getInitialFilters(): Filter[] {
 
 export class FilterStore {
 	filters = $state<Filter[]>(getInitialFilters());
-	lastUrlFilters = $state<string>(page.url.searchParams.get('filters') || '');
 	mode = $state<FilterMode>('simple');
 
 	constructor(initialFilters: Filter[] = [], initialMode: FilterMode = 'simple') {
-		this.filters = initialFilters;
 		this.mode = initialMode;
-
-		// Always load filters from URL (advanced format only)
 		const urlFilters = page.url.searchParams.get('filters');
 		if (urlFilters) {
 			try {
@@ -42,66 +38,39 @@ export class FilterStore {
 				console.error('Failed to parse filters from URL:', e);
 				this.filters = [];
 			}
+		} else {
+			this.filters = initialFilters;
 		}
-
-		$effect(() => {
-			const currentUrlFilters = page.url.searchParams.get('filters') || '';
-			if (currentUrlFilters !== this.lastUrlFilters) {
-				this.lastUrlFilters = currentUrlFilters;
-				try {
-					this.filters = currentUrlFilters ? deserializeFilters(currentUrlFilters) : [];
-				} catch (e) {
-					console.error('Failed to parse filters from URL:', e);
-					this.filters = [];
-				}
-			}
-		});
-
-		$effect(() => {
-			const currentFilterSerialized = this.filters.length > 0 ? serializeFilters(this.filters) : '';
-
-			if (currentFilterSerialized !== this.lastUrlFilters) {
-				this.lastUrlFilters = currentFilterSerialized;
-				const url = new SvelteURL(window.location.href);
-
-				if (currentFilterSerialized) {
-					url.searchParams.set('filters', currentFilterSerialized);
-				} else {
-					url.searchParams.delete('filters');
-				}
-
-				goto(url.pathname + url.search, {
-					replaceState: true,
-					keepFocus: true,
-					noScroll: true
-				});
-			}
-		});
 	}
 
 	// Add a new filter
 	addFilter(filter: Omit<Filter, 'id'>): void {
-		this.filters = [...this.filters, { ...filter, id: generateFilterId() }];
+		this.setFilters([...this.filters, { ...filter, id: generateFilterId() }]);
 	}
 
 	// Update an existing filter
 	updateFilter(id: string, updates: Partial<Filter>): void {
-		this.filters = this.filters.map((f) => (f.id === id ? { ...f, ...updates } : f));
+		this.setFilters(this.filters.map((f) => (f.id === id ? { ...f, ...updates } : f)));
 	}
 
 	// Remove a filter
 	removeFilter(id: string): void {
-		this.filters = this.filters.filter((f) => f.id !== id);
+		this.setFilters(this.filters.filter((f) => f.id !== id));
 	}
 
 	// Clear all filters
 	clearFilters(): void {
-		this.filters = [];
+		if (this.filters.length === 0) return;
+		this.setFilters([]);
 	}
 
 	// Replace all filters
 	setFilters(filters: Filter[]): void {
+		const currentSerialized = this.filters.length > 0 ? serializeFilters(this.filters) : '';
+		const nextSerialized = filters.length > 0 ? serializeFilters(filters) : '';
+		if (currentSerialized === nextSerialized) return;
 		this.filters = filters;
+		this.syncUrl();
 	}
 
 	// Get filter by ID
@@ -126,7 +95,7 @@ export class FilterStore {
 
 	// Load filters from serialized string
 	deserialize(serialized: string): void {
-		this.filters = deserializeFilters(serialized);
+		this.setFilters(deserializeFilters(serialized));
 	}
 
 	// Get filters as plain array (for API calls)
@@ -147,10 +116,36 @@ export class FilterStore {
 	fromURLSearchParams(params: URLSearchParams | SvelteURLSearchParams): void {
 		const filtersParam = params.get('filters');
 		if (filtersParam) {
-			this.deserialize(filtersParam);
+			try {
+				this.setFilters(deserializeFilters(filtersParam));
+			} catch (e) {
+				console.error('Failed to parse filters from URL:', e);
+				this.clearFilters();
+			}
 		} else {
 			this.clearFilters();
 		}
+	}
+
+	private syncUrl(): void {
+		if (typeof window === 'undefined') return;
+
+		const nextSerialized = this.filters.length > 0 ? serializeFilters(this.filters) : '';
+		const url = new SvelteURL(window.location.href);
+		const currentSerialized = url.searchParams.get('filters') || '';
+		if (currentSerialized === nextSerialized) return;
+
+		if (nextSerialized) {
+			url.searchParams.set('filters', nextSerialized);
+		} else {
+			url.searchParams.delete('filters');
+		}
+
+		goto(url.pathname + url.search, {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
 	}
 
 	// Create a human-readable summary of active filters
