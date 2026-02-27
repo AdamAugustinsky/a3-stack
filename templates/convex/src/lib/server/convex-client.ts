@@ -1,5 +1,5 @@
 import { getRequestEvent } from '$app/server';
-import { createConvexHttpClient } from '@mmailaender/convex-better-auth-svelte/sveltekit';
+import { createConvexHttpClient } from './convex-better-auth-sveltekit';
 
 export function getServerConvexClient() {
 	const event = getRequestEvent();

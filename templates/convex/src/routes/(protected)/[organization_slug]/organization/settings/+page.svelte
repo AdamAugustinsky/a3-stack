@@ -38,7 +38,7 @@
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-svelte';
+	import { useConvexClient } from 'convex-sveltekit';
 
 	type OrganizationRole = 'member' | 'admin' | 'owner';
 

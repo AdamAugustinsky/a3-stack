@@ -2,7 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { resolve as resolveRoute } from '$app/paths';
 import { api } from '$convex/api';
 import { createAuth } from '../convex/auth';
-import { createConvexHttpClient, getToken } from '@mmailaender/convex-better-auth-svelte/sveltekit';
+import { createConvexHttpClient, getToken } from '$lib/server/convex-better-auth-sveltekit';
 import { Effect } from 'effect';
 import { failRedirect, runServerEffect, tryPromise } from '$lib/server/effect';
 

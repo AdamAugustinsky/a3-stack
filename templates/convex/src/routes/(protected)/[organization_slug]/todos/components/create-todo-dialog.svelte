@@ -12,7 +12,7 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { page } from '$app/state';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-svelte';
+	import { useConvexClient } from 'convex-sveltekit';
 
 	let {
 		open = $bindable()

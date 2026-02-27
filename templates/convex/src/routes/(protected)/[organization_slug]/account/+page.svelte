@@ -19,7 +19,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-svelte';
+	import { useConvexClient } from 'convex-sveltekit';
 
 	const { data }: { data: PageData } = $props();
 	const convex = useConvexClient();

@@ -14,7 +14,7 @@
 	import { page } from '$app/state';
 	import { api } from '$convex/api';
 	import { applyTaskFilters, toTasks, toTodoId, toTodoIds } from '$lib/convex/todos';
-	import { useConvexClient, useQuery } from 'convex-svelte';
+	import { useConvexClient, convexQuery } from 'convex-sveltekit';
 
 	const convex = useConvexClient();
 
@@ -28,7 +28,7 @@
 	const filterStore = new FilterStore();
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
 
-	const todosQuery = useQuery(
+	const todosQuery = convexQuery(
 		api.todos.listTodos,
 		() => (organizationSlug ? { organizationSlug } : 'skip'),
 		() => ({ keepPreviousData: true })

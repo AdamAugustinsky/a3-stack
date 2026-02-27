@@ -12,7 +12,7 @@
 	import { page } from '$app/state';
 	import { api } from '$convex/api';
 	import { toTodoId } from '$lib/convex/todos';
-	import { useConvexClient } from 'convex-svelte';
+	import { useConvexClient } from 'convex-sveltekit';
 
 	let {
 		open = $bindable(),

@@ -67,10 +67,9 @@
 	},
 	"dependencies": {
 		"@convex-dev/better-auth": "^0.10.12",
-		"@mmailaender/convex-better-auth-svelte": "^0.5.1",
 		"better-auth": "^1.4.9",
 		"convex": "^1.28.3",
-		"convex-svelte": "^0.0.12",
+		"convex-sveltekit": "^0.1.10",
 		"effect": "^4.0.0-beta.11",
 		"runed": "^0.34.0"
 	}

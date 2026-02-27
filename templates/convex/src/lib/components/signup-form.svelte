@@ -9,7 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-svelte';
+	import { useConvexClient } from 'convex-sveltekit';
 
 	let { class: className, ...restProps }: HTMLAttributes<HTMLDivElement> = $props();
 	const convex = useConvexClient();

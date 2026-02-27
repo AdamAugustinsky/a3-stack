@@ -7,7 +7,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { api } from '$convex/api';
-	import { useConvexClient } from 'convex-svelte';
+	import { useConvexClient } from 'convex-sveltekit';
 	import BuildingIcon from '@lucide/svelte/icons/building-2';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';

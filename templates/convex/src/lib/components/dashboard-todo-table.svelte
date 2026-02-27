@@ -5,7 +5,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { api } from '$convex/api';
 	import { toTasks } from '$lib/convex/todos';
-	import { useQuery } from 'convex-svelte';
+	import { convexQuery } from 'convex-sveltekit';
 	import {
 		labels,
 		statuses,
@@ -17,7 +17,7 @@
 
 	// Use $derived to get the organization slug reactively
 	const organizationSlug = $derived(page.params.organization_slug!);
-	const todosQuery = useQuery(api.todos.listTodos, () => ({
+	const todosQuery = convexQuery(api.todos.listTodos, () => ({
 		organizationSlug
 	}));
 	const todos = $derived(toTasks(todosQuery.data));

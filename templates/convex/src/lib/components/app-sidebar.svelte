@@ -25,7 +25,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { api } from '$convex/api';
-	import { useQuery } from 'convex-svelte';
+	import { convexQuery } from 'convex-sveltekit';
 
 	type Props = ComponentProps<typeof Sidebar.Root> & {
 		user: User;
@@ -33,7 +33,7 @@
 
 	let { user, ...restProps }: Props = $props();
 
-	const organizationsQuery = useQuery(api.organizations.listOrganizations, {});
+	const organizationsQuery = convexQuery(api.organizations.listOrganizations, {});
 	const organizations = $derived(organizationsQuery.data ?? []);
 
 	// Get active organization from URL slug

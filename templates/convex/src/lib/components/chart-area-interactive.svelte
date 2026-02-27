@@ -11,7 +11,7 @@
 	import { curveNatural } from 'd3-shape';
 	import { api } from '$convex/api';
 	import { computeRecentActivity } from '$lib/convex/todos';
-	import { useQuery } from 'convex-svelte';
+	import { convexQuery } from 'convex-sveltekit';
 	import { page } from '$app/state';
 
 	type RangeKey = '30d' | '14d' | '7d';
@@ -37,7 +37,7 @@
 		inProgress: { label: 'In Progress', color: 'var(--chart-2)' }
 	} satisfies Chart.ChartConfig;
 
-	const activityQuery = useQuery(api.todos.listTodos, () =>
+	const activityQuery = convexQuery(api.todos.listTodos, () =>
 		page.params.organization_slug
 			? {
 					organizationSlug: page.params.organization_slug

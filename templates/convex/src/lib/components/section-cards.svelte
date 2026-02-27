@@ -8,10 +8,10 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { api } from '$convex/api';
 	import { computeDashboardStats } from '$lib/convex/todos';
-	import { useQuery } from 'convex-svelte';
+	import { convexQuery } from 'convex-sveltekit';
 	import { page } from '$app/state';
 
-	const dashboardQuery = useQuery(api.todos.listTodos, () =>
+	const dashboardQuery = convexQuery(api.todos.listTodos, () =>
 		page.params.organization_slug
 			? {
 					organizationSlug: page.params.organization_slug

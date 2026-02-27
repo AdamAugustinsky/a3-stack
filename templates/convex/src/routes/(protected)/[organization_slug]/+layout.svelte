@@ -7,12 +7,12 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { api } from '$convex/api';
-	import { useConvexClient, useQuery } from 'convex-svelte';
+	import { useConvexClient, convexQuery } from 'convex-sveltekit';
 
 	const { children, data }: { children: Snippet; data: LayoutData } = $props();
 	const convex = useConvexClient();
 
-	const organizationsQuery = useQuery(api.organizations.listOrganizations, {});
+	const organizationsQuery = convexQuery(api.organizations.listOrganizations, {});
 	const organizations = $derived(organizationsQuery.data ?? []);
 
 	// Track what we've already set to avoid duplicate calls
