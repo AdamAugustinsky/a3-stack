@@ -3,7 +3,6 @@
 		type ColumnDef,
 		type ColumnFiltersState,
 		type PaginationState,
-		type Row,
 		type RowSelectionState,
 		type SortingState,
 		type VisibilityState,
@@ -27,7 +26,6 @@
 
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronsLeftIcon from '@lucide/svelte/icons/chevrons-left';
@@ -41,8 +39,7 @@
 	import { cn } from '$lib/utils.js';
 	import type { Task } from '@/schemas/todo';
 	import { page } from '$app/state';
-	import CreateTodoDialog from './create-todo-dialog.svelte';
-	import EditTodoDialog from './edit-todo-dialog.svelte';
+	import TodoRowActions from './todo-row-actions.svelte';
 	import BulkOperationsDock from './bulk-operations-dock.svelte';
 	import type { FilterStore } from '$lib/components/filter/filter-store.svelte';
 	import type { FilterConfig } from '@/utils/filter';
@@ -180,7 +177,7 @@
 		},
 		{
 			id: 'actions',
-			cell: ({ row }) => renderSnippet(RowActions, { row })
+			cell: ({ row }) => renderSnippet(RowActions, { task: row.original })
 		}
 	];
 
@@ -327,35 +324,8 @@
 	{/if}
 {/snippet}
 
-{#snippet RowActions({ row }: { row: Row<Task> })}
-	{@const task = row.original}
-	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
-			{#snippet child({ props })}
-				<Button {...props} variant="ghost" class="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
-					<EllipsisIcon />
-					<span class="sr-only">Open Menu</span>
-				</Button>
-			{/snippet}
-		</DropdownMenu.Trigger>
-		<DropdownMenu.Content class="w-40" align="end">
-			<EditTodoDialog todo={task}>
-				{#snippet trigger({ props }: { props: Record<string, unknown> })}
-					<DropdownMenu.Item {...props}>Edit</DropdownMenu.Item>
-				{/snippet}
-			</EditTodoDialog>
-			<CreateTodoDialog initialTodo={task}>
-				{#snippet trigger({ props }: { props: Record<string, unknown> })}
-					<DropdownMenu.Item {...props}>Make a copy</DropdownMenu.Item>
-				{/snippet}
-			</CreateTodoDialog>
-			<DropdownMenu.Separator />
-			<DropdownMenu.Item onclick={() => void handleDelete(task.docId)}>
-				Delete
-				<DropdownMenu.Shortcut>⌘⌫</DropdownMenu.Shortcut>
-			</DropdownMenu.Item>
-		</DropdownMenu.Content>
-	</DropdownMenu.Root>
+{#snippet RowActions({ task }: { task: Task })}
+	<TodoRowActions {task} onDelete={() => void handleDelete(task.docId)} />
 {/snippet}
 
 {#snippet Pagination({ table }: { table: TableType<Task> })}
