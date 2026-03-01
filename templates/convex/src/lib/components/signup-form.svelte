@@ -114,10 +114,9 @@
 							/>
 						</div>
 						{#if signUpError}
-							<Alert.Root variant="destructive">
+							<Alert.Root variant="destructive" class="py-2.5">
 								<CircleAlertIcon class="size-4" />
-								<Alert.Title>Error</Alert.Title>
-								<Alert.Description>{signUpError}</Alert.Description>
+								<Alert.Description class="text-sm">{signUpError}</Alert.Description>
 							</Alert.Root>
 						{/if}
 						<Button type="submit" class="w-full" disabled={isLoading}>

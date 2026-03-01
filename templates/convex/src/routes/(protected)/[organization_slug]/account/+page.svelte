@@ -19,6 +19,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { api } from '$convex/api';
 	import { convexForm, convexQuery } from 'convex-sveltekit';
+	import * as Field from '$lib/components/ui/field/index.js';
 	import * as v from 'valibot';
 
 	const userQuery = convexQuery(api.auth.getCurrentUser, {});
@@ -65,16 +66,7 @@
 		name: formData.name.trim()
 	}));
 
-	const submitProfileForm = updateProfileForm.enhance(async ({ submit }) => {
-		try {
-			await submit();
-			toast.success('Profile updated successfully.');
-			await invalidateAll();
-			isEditing = false;
-		} catch {
-			toast.error('Failed to save profile. Please try again.');
-		}
-	});
+
 
 	function handleCancel() {
 		isEditing = false;
@@ -135,7 +127,16 @@
 				</div>
 
 				{#if isEditing}
-					<form {...submitProfileForm} class="grid gap-4">
+					<form {...updateProfileForm.enhance(async ({ submit }) => {
+						try {
+							await submit();
+							toast.success('Profile updated successfully.');
+							await invalidateAll();
+							isEditing = false;
+						} catch {
+							toast.error('Failed to save profile. Please try again.');
+						}
+					})} class="grid gap-4">
 						<div class="grid gap-2">
 							<Label for="name">Full Name</Label>
 							<Input
@@ -147,9 +148,7 @@
 								bind:value={name}
 							/>
 							{#if updateProfileForm.fields.name.issues()?.[0]}
-								<p class="text-xs text-destructive">
-									{updateProfileForm.fields.name.issues()?.[0]?.message}
-								</p>
+								<Field.Error>{updateProfileForm.fields.name.issues()?.[0]?.message}</Field.Error>
 							{/if}
 							<p class="text-xs text-muted-foreground">
 								Use your real name so people can recognize you.

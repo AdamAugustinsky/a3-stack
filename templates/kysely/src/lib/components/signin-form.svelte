@@ -26,7 +26,6 @@
 					loginError = undefined;
 					isLoading = true;
 
-					console.log('Submitting signin');
 
 					try {
 						await submit();
@@ -63,10 +62,9 @@
 							<Input id="password" name="password" type="password" required disabled={isLoading} />
 						</div>
 						{#if loginError}
-							<Alert.Root variant="destructive">
+							<Alert.Root variant="destructive" class="py-2.5">
 								<CircleAlertIcon class="size-4" />
-								<Alert.Title>Error</Alert.Title>
-								<Alert.Description>{loginError}</Alert.Description>
+								<Alert.Description class="text-sm">{loginError}</Alert.Description>
 							</Alert.Root>
 						{/if}
 						<Button type="submit" class="w-full" disabled={isLoading}>

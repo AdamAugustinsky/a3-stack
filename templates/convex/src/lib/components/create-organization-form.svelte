@@ -62,7 +62,9 @@
 		}
 	});
 
-	const submitCreateOrganization = createOrganizationForm.enhance(async ({ submit }) => {
+</script>
+
+<form {...createOrganizationForm.enhance(async ({ submit }) => {
 		errorValue = undefined;
 
 		const nextSlug = slug.trim();
@@ -83,10 +85,7 @@
 		} catch (error) {
 			errorValue = error instanceof Error ? error.message : 'Failed to create organization';
 		}
-	});
-</script>
-
-<form {...submitCreateOrganization} class="flex flex-col">
+	})} class="flex flex-col">
 	<div class="space-y-3.5 px-5 py-4">
 		{#if errorValue}
 			<Alert.Root variant="destructive" class="py-2.5">

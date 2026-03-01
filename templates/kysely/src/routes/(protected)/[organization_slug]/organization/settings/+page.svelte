@@ -9,6 +9,7 @@
 	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field/index.js';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar';
 	import { toast } from 'svelte-sonner';
@@ -259,7 +260,7 @@
 									disabled={!!updateOrganizationForm.pending}
 								/>
 								{#each updateOrganizationForm.fields.name.issues() ?? [] as issue}
-									<p class="text-xs text-destructive">{issue.message}</p>
+									<Field.Error>{issue.message}</Field.Error>
 								{/each}
 							</div>
 
@@ -273,7 +274,7 @@
 									oninput={() => (slugManuallyEdited = true)}
 								/>
 								{#each updateOrganizationForm.fields.slug.issues() ?? [] as issue}
-									<p class="text-xs text-destructive">{issue.message}</p>
+									<Field.Error>{issue.message}</Field.Error>
 								{/each}
 								<p class="text-xs text-muted-foreground">
 									Used in URLs and must be unique. Only lowercase letters, numbers, and hyphens.
@@ -565,7 +566,7 @@
 						disabled={!!inviteMemberForm.pending}
 					/>
 					{#each inviteMemberForm.fields.email.issues() ?? [] as issue}
-						<p class="text-xs text-destructive">{issue.message}</p>
+						<Field.Error>{issue.message}</Field.Error>
 					{/each}
 				</div>
 

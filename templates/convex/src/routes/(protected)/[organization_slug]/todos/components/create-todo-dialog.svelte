@@ -18,9 +18,6 @@
 	import * as v from 'valibot';
 
 	type TriggerSnippet = Snippet<[{ props: Record<string, unknown> }]>;
-	type TodoLabel = 'bug' | 'feature' | 'documentation';
-	type TodoStatus = 'backlog' | 'todo' | 'in progress' | 'done' | 'canceled';
-	type TodoPriority = 'low' | 'medium' | 'high';
 
 	let {
 		open = $bindable(false),
@@ -36,47 +33,16 @@
 
 	const organizationSlug = $derived(page.params.organization_slug ?? '');
 
-	let text = $state('');
-	let label = $state<TodoLabel>('feature');
-	let status = $state<TodoStatus>('todo');
-	let priority = $state<TodoPriority>('medium');
-	let wasOpen = $state(false);
+	type TaskFields = Pick<Task, 'text'|'label'|'status'|'priority'>
 
+	const initialTaskValues: TaskFields = {
+		text: '',
+		label: 'feature' ,
+		status: 'todo' ,
+		priority: 'medium',
+	}
+	let fields = $state<TaskFields>(initialTaskValues);
 	let createTodoError = $state<string | undefined>();
-
-	function getDefaultValues() {
-		return {
-			text: '',
-			label: 'feature' as TodoLabel,
-			status: 'todo' as TodoStatus,
-			priority: 'medium' as TodoPriority
-		};
-	}
-
-	function getInitialValues() {
-		if (!initialTodo) {
-			return getDefaultValues();
-		}
-
-		return {
-			text: `${initialTodo.text} (copy)`,
-			label: initialTodo.label,
-			status: initialTodo.status,
-			priority: initialTodo.priority
-		};
-	}
-
-	function applyFormValues(values: {
-		text: string;
-		label: TodoLabel;
-		status: TodoStatus;
-		priority: TodoPriority;
-	}) {
-		text = values.text;
-		label = values.label;
-		status = values.status;
-		priority = values.priority;
-	}
 
 	const createTodoSchema = v.object({
 		text: v.pipe(
@@ -95,38 +61,12 @@
 			organizationSlug,
 			text: data.text.trim(),
 			completed: false,
-			priority,
-			status,
-			label
+			priority: fields.priority,
+			status: fields.status,
+			label: fields.label
 		};
 	});
 
-	const createTodoSubmit = createTodoForm.enhance(async ({ submit }) => {
-		createTodoError = undefined;
-		try {
-			await submit();
-			open = false;
-		} catch (error) {
-			createTodoError =
-				error instanceof Error
-					? error.message
-					: 'An unexpected error occurred. Please try again.';
-		}
-	});
-
-	$effect(() => {
-		if (open && !wasOpen) {
-			applyFormValues(getInitialValues());
-			createTodoError = undefined;
-		}
-
-		if (!open && wasOpen) {
-			applyFormValues(getDefaultValues());
-			createTodoError = undefined;
-		}
-
-		wasOpen = open;
-	});
 
 	function handleShortcut(event: KeyboardEvent) {
 		if (!enableShortcut) return;
@@ -170,7 +110,19 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<form {...createTodoSubmit} class="flex flex-col">
+		<form {...createTodoForm.enhance(async ({ submit }) => {
+				createTodoError = undefined;
+				try {
+					await submit();
+					open = false;
+					fields = initialTaskValues
+				} catch (error) {
+					createTodoError =
+						error instanceof Error
+							? error.message
+							: 'An unexpected error occurred. Please try again.';
+				}
+			})} class="flex flex-col">
 			<div class="space-y-3.5 px-5 py-4">
 				{#if createTodoError}
 					<Alert.Root variant="destructive" class="py-2.5">
@@ -199,7 +151,7 @@
 							placeholder="What needs to be done?"
 							name="text"
 							required
-							bind:value={text}
+							bind:value={fields.text}
 						/>
 					</InputGroup.Root>
 					{#if createTodoForm.fields.text.issues()?.[0]}
@@ -210,10 +162,10 @@
 				<div class="grid grid-cols-3 gap-2.5">
 					<Field.Field class="gap-1.5">
 						<Field.Label for="label" class="text-sm font-medium">Label</Field.Label>
-						<Select.Root type="single" allowDeselect={false} name="label" bind:value={label}>
+						<Select.Root type="single" allowDeselect={false} name="label" bind:value={fields.label}>
 							<Select.Trigger class="w-full" id="label">
 								<Badge variant="outline" class="font-normal">
-									{labels.find((l) => l.value === label)?.label}
+									{labels.find((l) => l.value === fields.label)?.label}
 								</Badge>
 							</Select.Trigger>
 							<Select.Content>
@@ -230,9 +182,9 @@
 
 					<Field.Field class="gap-1.5">
 						<Field.Label for="status" class="text-sm font-medium">Status</Field.Label>
-						<Select.Root type="single" allowDeselect={false} name="status" bind:value={status}>
+						<Select.Root type="single" allowDeselect={false} name="status" bind:value={fields.status}>
 							<Select.Trigger class="w-full" id="status">
-								{@const currentStatus = statuses.find((s) => s.value === status)}
+								{@const currentStatus = statuses.find((s) => s.value === fields.status)}
 								{#if currentStatus}
 									<span class="flex items-center gap-2">
 										<currentStatus.icon class="size-4 text-muted-foreground" />
@@ -259,13 +211,13 @@
 							type="single"
 							allowDeselect={false}
 							name="priority"
-							bind:value={priority}
+							bind:value={fields.priority}
 						>
 							<Select.Trigger
 								class="w-full"
 								id="priority"
 							>
-								{@const currentPriority = priorities.find((p) => p.value === priority)}
+								{@const currentPriority = priorities.find((p) => p.value === fields.priority)}
 								{#if currentPriority}
 									<span class="flex items-center gap-2">
 										<currentPriority.icon class="size-4 text-muted-foreground" />

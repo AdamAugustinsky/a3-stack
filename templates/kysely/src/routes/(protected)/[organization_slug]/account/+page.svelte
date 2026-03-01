@@ -9,6 +9,7 @@
 	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field/index.js';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar';
 	import { toast } from 'svelte-sonner';
@@ -134,7 +135,7 @@
 								disabled={!!updateProfile.pending}
 							/>
 							{#each updateProfile.fields.name.issues() ?? [] as issue (issue.message)}
-								<p class="text-xs text-destructive">{issue.message}</p>
+								<Field.Error>{issue.message}</Field.Error>
 							{/each}
 							<p class="text-xs text-muted-foreground">
 								Use your real name so people can recognize you.

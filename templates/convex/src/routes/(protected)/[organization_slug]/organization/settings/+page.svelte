@@ -23,6 +23,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import * as Alert from '$lib/components/ui/alert';
+	import * as Field from '$lib/components/ui/field/index.js';
 	import BuildingIcon from '@tabler/icons-svelte/icons/building';
 	import CalendarIcon from '@tabler/icons-svelte/icons/calendar';
 	import ShieldIcon from '@tabler/icons-svelte/icons/shield';
@@ -33,6 +35,7 @@
 	import XIcon from '@tabler/icons-svelte/icons/x';
 	import CrownIcon from '@tabler/icons-svelte/icons/crown';
 	import UserPlusIcon from '@tabler/icons-svelte/icons/user-plus';
+	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -54,38 +57,38 @@
 	let isEditing = $state(false);
 	let showInviteDialog = $state(false);
 	let showDeleteDialog = $state(false);
-	let editName = $state('');
-	let editSlug = $state('');
-	let editLogo = $state('');
 	let slugManuallyEdited = $state(false);
 	let organizationFormError = $state<string | undefined>();
-	let inviteEmail = $state('');
-	let inviteRole = $state<OrganizationRole>('member');
 	let inviteError = $state<string | undefined>();
+
+	type EditFields = { name: string; slug: string; logo: string };
+	let editFields = $state<EditFields>({ name: '', slug: '', logo: '' });
+
+	type InviteFields = { email: string; role: OrganizationRole };
+	let inviteFields = $state<InviteFields>({ email: '', role: 'member' });
 
 	const members = $derived(activeOrganization?.members ?? []);
 	const invitations = $derived(activeOrganization?.invitations ?? []);
 
 	$effect(() => {
-		if (isEditing && activeOrganization) {
-			editName = activeOrganization.name;
-			editSlug = activeOrganization.slug || '';
-			editLogo = activeOrganization.logo || '';
-			organizationFormError = undefined;
-		}
+		if (!isEditing || !activeOrganization) return;
+		editFields = {
+			name: activeOrganization.name,
+			slug: activeOrganization.slug || '',
+			logo: activeOrganization.logo || ''
+		};
+		organizationFormError = undefined;
 	});
 
 	$effect(() => {
-		if (showInviteDialog) {
-			inviteEmail = '';
-			inviteRole = 'member';
-			inviteError = undefined;
-		}
+		if (!showInviteDialog) return;
+		inviteFields = { email: '', role: 'member' };
+		inviteError = undefined;
 	});
 
 	$effect(() => {
-		if (isEditing && !slugManuallyEdited && editName) {
-			editSlug = generateSlug(editName);
+		if (isEditing && !slugManuallyEdited && editFields.name) {
+			editFields.slug = generateSlug(editFields.name);
 		}
 	});
 
@@ -165,36 +168,6 @@
 		}
 	);
 
-	const submitUpdateOrganization = updateOrganizationForm.enhance(async ({ submit }) => {
-		if (!activeOrganization) return;
-
-		organizationFormError = undefined;
-		const nextSlug = editSlug.trim();
-
-		if (!nextSlug || !isValidSlug(nextSlug)) {
-			return;
-		}
-
-		try {
-			await submit();
-			toast.success('Organization details updated successfully.');
-			isEditing = false;
-			slugManuallyEdited = false;
-
-			if (nextSlug !== activeOrganization.slug) {
-				await goto(
-					resolve('/(protected)/[organization_slug]/organization/settings', {
-						organization_slug: nextSlug
-					})
-				);
-			}
-		} catch (error) {
-			organizationFormError =
-				error instanceof Error ? error.message : 'Failed to update organization details.';
-			toast.error('Failed to update organization details.');
-		}
-	});
-
 	const inviteMemberSchema = v.object({
 		email: v.pipe(
 			v.string('Email is required.'),
@@ -215,21 +188,6 @@
 			role: formData.role as OrganizationRole,
 			organizationId: activeOrganization.id
 		};
-	});
-
-	const submitInviteMember = inviteMemberForm.enhance(async ({ submit }) => {
-		if (!activeOrganization) return;
-
-		inviteError = undefined;
-
-		try {
-			await submit();
-			showInviteDialog = false;
-			toast.success('Invitation sent successfully.');
-		} catch (error) {
-			inviteError = error instanceof Error ? error.message : 'Failed to send invitation.';
-			toast.error('Failed to send invitation.');
-		}
 	});
 
 	async function handleUpdateMemberRole(memberId: string, newRole: OrganizationRole) {
@@ -351,9 +309,40 @@
 					</div>
 
 					{#if isEditing}
-						<form {...submitUpdateOrganization} class="grid gap-4">
+						<form {...updateOrganizationForm.enhance(async ({ submit }) => {
+								if (!activeOrganization) return;
+
+								organizationFormError = undefined;
+								const nextSlug = editFields.slug.trim();
+
+								if (!nextSlug || !isValidSlug(nextSlug)) {
+									return;
+								}
+
+								try {
+									await submit();
+									toast.success('Organization details updated successfully.');
+									isEditing = false;
+									slugManuallyEdited = false;
+
+									if (nextSlug !== activeOrganization.slug) {
+										await goto(
+											resolve('/(protected)/[organization_slug]/organization/settings', {
+												organization_slug: nextSlug
+											})
+										);
+									}
+								} catch (error) {
+									organizationFormError =
+										error instanceof Error ? error.message : 'Failed to update organization details.';
+									toast.error('Failed to update organization details.');
+								}
+							})} class="grid gap-4">
 							{#if organizationFormError}
-								<p class="text-xs text-destructive">{organizationFormError}</p>
+								<Alert.Root variant="destructive" class="py-2.5">
+									<CircleAlertIcon class="size-4" />
+									<Alert.Description class="text-sm">{organizationFormError}</Alert.Description>
+								</Alert.Root>
 							{/if}
 
 							<div class="grid gap-2">
@@ -364,12 +353,10 @@
 									required
 									placeholder="Enter organization name"
 									disabled={updateOrganizationForm.pending > 0}
-									bind:value={editName}
+									bind:value={editFields.name}
 								/>
 								{#if updateOrganizationForm.fields.name.issues()?.[0]}
-									<p class="text-xs text-destructive">
-										{updateOrganizationForm.fields.name.issues()?.[0]?.message}
-									</p>
+									<Field.Error>{updateOrganizationForm.fields.name.issues()?.[0]?.message}</Field.Error>
 								{/if}
 							</div>
 
@@ -381,13 +368,11 @@
 									required
 									placeholder="organization-slug"
 									disabled={updateOrganizationForm.pending > 0}
-									bind:value={editSlug}
+									bind:value={editFields.slug}
 									oninput={() => (slugManuallyEdited = true)}
 								/>
 								{#if updateOrganizationForm.fields.slug.issues()?.[0]}
-									<p class="text-xs text-destructive">
-										{updateOrganizationForm.fields.slug.issues()?.[0]?.message}
-									</p>
+									<Field.Error>{updateOrganizationForm.fields.slug.issues()?.[0]?.message}</Field.Error>
 								{/if}
 								<p class="text-xs text-muted-foreground">
 									Used in URLs and must be unique. Only lowercase letters, numbers, and hyphens.
@@ -401,7 +386,7 @@
 									name="logo"
 									placeholder="https://example.com/logo.png"
 									disabled={updateOrganizationForm.pending > 0}
-									bind:value={editLogo}
+									bind:value={editFields.logo}
 								/>
 								<p class="text-xs text-muted-foreground">Provide a URL to your organization's logo.</p>
 							</div>
@@ -662,10 +647,26 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<form {...submitInviteMember} class="contents">
+		<form {...inviteMemberForm.enhance(async ({ submit }) => {
+				if (!activeOrganization) return;
+
+				inviteError = undefined;
+
+				try {
+					await submit();
+					showInviteDialog = false;
+					toast.success('Invitation sent successfully.');
+				} catch (error) {
+					inviteError = error instanceof Error ? error.message : 'Failed to send invitation.';
+					toast.error('Failed to send invitation.');
+				}
+			})} class="contents">
 			<div class="space-y-3.5 px-5 py-4">
 				{#if inviteError}
-					<p class="text-xs text-destructive">{inviteError}</p>
+					<Alert.Root variant="destructive" class="py-2.5">
+						<CircleAlertIcon class="size-4" />
+						<Alert.Description class="text-sm">{inviteError}</Alert.Description>
+					</Alert.Root>
 				{/if}
 
 				<div class="grid gap-2">
@@ -677,12 +678,10 @@
 						required
 						placeholder="colleague@example.com"
 						disabled={inviteMemberForm.pending > 0}
-						bind:value={inviteEmail}
+						bind:value={inviteFields.email}
 					/>
 					{#if inviteMemberForm.fields.email.issues()?.[0]}
-						<p class="text-xs text-destructive">
-							{inviteMemberForm.fields.email.issues()?.[0]?.message}
-						</p>
+						<Field.Error>{inviteMemberForm.fields.email.issues()?.[0]?.message}</Field.Error>
 					{/if}
 				</div>
 
@@ -692,7 +691,7 @@
 						id="role"
 						name="role"
 						disabled={inviteMemberForm.pending > 0}
-						bind:value={inviteRole}
+						bind:value={inviteFields.role}
 						class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						<option value="member">Member</option>
@@ -700,9 +699,7 @@
 						{#if isOwner}<option value="owner">Owner</option>{/if}
 					</select>
 					{#if inviteMemberForm.fields.role.issues()?.[0]}
-						<p class="text-xs text-destructive">
-							{inviteMemberForm.fields.role.issues()?.[0]?.message}
-						</p>
+						<Field.Error>{inviteMemberForm.fields.role.issues()?.[0]?.message}</Field.Error>
 					{/if}
 				</div>
 			</div>
