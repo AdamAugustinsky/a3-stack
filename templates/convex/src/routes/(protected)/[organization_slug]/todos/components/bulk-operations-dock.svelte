@@ -80,6 +80,10 @@
 
 	async function handleDelete() {
 		if (!organizationSlug || selectedRows.length === 0 || isLoading) return;
+		const confirmed = window.confirm(
+			`Delete ${selectedRows.length} selected task${selectedRows.length > 1 ? 's' : ''}? This action cannot be undone.`
+		);
+		if (!confirmed) return;
 
 		try {
 			await bulkDeleteTodos({

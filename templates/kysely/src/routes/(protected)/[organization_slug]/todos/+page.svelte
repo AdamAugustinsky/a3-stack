@@ -36,6 +36,9 @@
 	}
 
 	async function handleDeleteTodo(id: number) {
+		const confirmed = window.confirm('Delete this task? This action cannot be undone.');
+		if (!confirmed) return;
+
 		try {
 			await deleteTodo({
 				organizationSlug: page.params.organization_slug!,
@@ -134,6 +137,11 @@
 
 	async function handleBulkDelete() {
 		if (selectedTodos.length > 0) {
+			const confirmed = window.confirm(
+				`Delete ${selectedTodos.length} selected task${selectedTodos.length > 1 ? 's' : ''}? This action cannot be undone.`
+			);
+			if (!confirmed) return;
+
 			isBulkOperationPending = true;
 			try {
 				const ids = selectedTodos.map((todo) => todo.id);

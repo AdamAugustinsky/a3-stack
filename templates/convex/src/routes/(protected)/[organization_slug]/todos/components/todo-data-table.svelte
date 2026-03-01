@@ -262,6 +262,8 @@
 
 	async function handleDelete(todoId: string) {
 		if (!organizationSlug) return;
+		const confirmed = window.confirm('Delete this task? This action cannot be undone.');
+		if (!confirmed) return;
 
 		try {
 			const result = await deleteTodo({
